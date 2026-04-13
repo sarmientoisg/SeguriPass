@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SeguriPass - Registrar Prefecto</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand"><img src="../logo.png" alt="Logo" style="height:34px;"> SeguriPass</div>
+    <div class="navbar-user">
+      <span id="nav-usuario-rol" style="font-size:0.75rem;opacity:0.7;"></span>
+      <span id="nav-usuario" style="font-weight:600;"></span>
+      <a href="../login.html" class="btn-logout" onclick="sessionStorage.clear()">Cerrar Sesión</a>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <ul class="sidebar-menu">
+        <li><a href="dashboard.html"><span class="icon">🏠</span> Inicio</a></li>
+        <li><a href="registro-prefecto.html" class="active"><span class="icon">👮</span> Registrar Prefecto</a></li>
+        <li><a href="gestionar-prefectos.html"><span class="icon">⚙️</span> Gestionar Prefectos</a></li>
+        <li><a href="respaldo.html"><span class="icon">💾</span> Respaldo BD</a></li>
+        <li><a href="configuracion.html"><span class="icon">🔧</span> Configuración</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <h2 style="color:var(--vino);margin-bottom:20px;">👮 Registro de Prefecto</h2>
+
+      <div class="card" style="max-width:620px;">
+        <div class="card-header">
+          <span class="card-title">Datos del Prefecto</span>
+        </div>
+
+        <div id="alerta-registro"></div>
+
+        <form id="formPrefecto" novalidate>
+
+          <!-- Nombre completo -->
+          <div class="form-group">
+            <label class="form-label" for="nombre_completo">
+              Nombre Completo <span class="required">*</span>
+            </label>
+            <input type="text" id="nombre_completo" class="form-control"
+              placeholder="Nombre completo del prefecto"
+              data-tipo="nombre" data-max="100">
+            <span class="error-msg" id="nombre_completo_err">Complete este campo, deben usarse números</span>
+          </div>
+
+          <!-- Número de empleado -->
+          <div class="form-group">
+            <label class="form-label" for="numero_empleado">
+              Número de Empleado <span class="required">*</span>
+            </label>
+            <input type="text" id="numero_empleado" class="form-control"
+              placeholder="Ej: 12345"
+              data-tipo="numero" data-max="20">
+            <span class="error-msg" id="numero_empleado_err">Rellene este campo</span>
+          </div>
+
+          <!-- Usuario y contraseña -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="usuario">
+                Usuario <span class="required">*</span>
+              </label>
+              <input type="text" id="usuario" class="form-control"
+                placeholder="Nombre de usuario"
+                data-tipo="alfanumerico" data-max="50">
+              <span class="error-msg" id="usuario_err">Rellene el campo</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="contrasena">
+                Contraseña <span class="required">*</span>
+              </label>
+              <div style="position:relative;">
+                <input type="password" id="contrasena" class="form-control"
+                  placeholder="Mínimo 8 caracteres"
+                  data-tipo="password" data-max="128"
+                  style="padding-right:40px;">
+                <button type="button" onclick="togglePass('contrasena',this)"
+                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;">👁️</button>
+              </div>
+              <span class="error-msg" id="contrasena_err">Caracteres insuficientes</span>
+            </div>
+          </div>
+
+          <!-- Confirmar contraseña -->
+          <div class="form-group">
+            <label class="form-label" for="confirmar_pass">
+              Confirmar Contraseña <span class="required">*</span>
+            </label>
+            <div style="position:relative;">
+              <input type="password" id="confirmar_pass" class="form-control"
+                placeholder="Repite la contraseña"
+                data-tipo="password" data-max="128"
+                style="padding-right:40px;">
+              <button type="button" onclick="togglePass('confirmar_pass',this)"
+                style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;">👁️</button>
+            </div>
+            <span class="error-msg" id="confirmar_pass_err">Las contraseñas no coinciden</span>
+          </div>
+
+          <!-- Turno y Área -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="turno">
+                Turno <span class="required">*</span>
+              </label>
+              <select id="turno" class="form-control">
+                <option value="">-- Seleccione turno --</option>
+                <option value="Matutino">Matutino</option>
+                <option value="Vespertino">Vespertino</option>
+                <option value="Tiempo Completo">Tiempo Completo</option>
+              </select>
+              <span class="error-msg" id="turno_err">Turno no disponible</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="area">
+                Área <span class="required">*</span>
+              </label>
+              <input type="text" id="area" class="form-control"
+                placeholder="Área asignada"
+                data-tipo="alfanumerico" data-max="50">
+              <span class="error-msg" id="area_err">Rellene el campo</span>
+            </div>
+          </div>
+
+          <!-- Rol -->
+          <div class="form-group">
+            <label class="form-label" for="rol">
+              Rol <span class="required">*</span>
+            </label>
+            <select id="rol" class="form-control">
+              <option value="">-- Seleccione rol --</option>
+              <option value="Prefecto">Prefecto</option>
+              <option value="Administrador">Administrador</option>
+            </select>
+            <span class="error-msg" id="rol_err">Seleccione un rol</span>
+          </div>
+
+          <!-- Observaciones -->
+          <div class="form-group">
+            <label class="form-label" for="observaciones">Observaciones</label>
+            <textarea id="observaciones" class="form-control" rows="3"
+              placeholder="Notas adicionales (opcional)"
+              maxlength="300"></textarea>
+            <span class="error-msg" id="observaciones_err">Rellene el campo</span>
+          </div>
+
+          <div class="btn-group flex-end">
+            <button type="reset" class="btn btn-secondary" onclick="limpiarErrores('formPrefecto')">Limpiar</button>
+            <button type="submit" class="btn btn-primary">💾 Guardar Registro</button>
+          </div>
+
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script src="../js/validaciones.js"></script>
+  <script src="../js/notificaciones.js"></script>
+  <script>
+    const usuario = sessionStorage.getItem('sp_usuario');
+    if (!usuario) window.location.href = '../login.html';
+    document.getElementById('nav-usuario').textContent = usuario || 'Administrador';
+    document.getElementById('nav-usuario-rol').textContent = sessionStorage.getItem('sp_rol') || '';
+    iniciarNotificaciones('admin');
+
+    function togglePass(inputId, btn) {
+      const input = document.getElementById(inputId);
+      input.type = input.type === 'password' ? 'text' : 'password';
+      btn.textContent = input.type === 'password' ? '👁️' : '🙈';
+    }
+
+    document.getElementById('formPrefecto').addEventListener('submit', function(e) {
+      e.preventDefault();
+      limpiarErrores('formPrefecto');
+
+      const nombre   = document.getElementById('nombre_completo').value.trim();
+      const numEmp   = document.getElementById('numero_empleado').value.trim();
+      const usr      = document.getElementById('usuario').value.trim();
+      const pass     = document.getElementById('contrasena').value.trim();
+      const passConf = document.getElementById('confirmar_pass').value.trim();
+      const turno    = document.getElementById('turno').value;
+      const area     = document.getElementById('area').value.trim();
+      const rol      = document.getElementById('rol').value;
+      let valido = true;
+
+      if (!nombre) { mostrarError('nombre_completo', 'Complete este campo'); valido = false; }
+      if (!numEmp) { mostrarError('numero_empleado', 'Rellene este campo'); valido = false; }
+      if (!usr)    { mostrarError('usuario', 'Rellene el campo'); valido = false; }
+      if (!pass)   { mostrarError('contrasena', 'Caracteres insuficientes'); valido = false; }
+      else if (pass.length < 8) { mostrarError('contrasena', 'Mínimo 8 caracteres'); valido = false; }
+      if (!passConf) { mostrarError('confirmar_pass', 'Confirme la contraseña'); valido = false; }
+      else if (pass !== passConf) { mostrarError('confirmar_pass', 'Las contraseñas no coinciden'); valido = false; }
+      if (!turno)  { mostrarError('turno', 'Turno no disponible'); valido = false; }
+      if (!area)   { mostrarError('area', 'Rellene el campo'); valido = false; }
+      if (!rol)    { mostrarError('rol', 'Seleccione un rol'); valido = false; }
+
+      if (!valido) return;
+
+      // Verificar usuario o número de empleado duplicado
+      const prefectos = JSON.parse(localStorage.getItem('sp_prefectos') || '[]');
+      if (prefectos.find(p => p.numero_empleado === numEmp)) {
+        mostrarError('numero_empleado', 'Este número de empleado ya existe');
+        return;
+      }
+      if (prefectos.find(p => p.usuario === usr)) {
+        mostrarError('usuario', 'Este nombre de usuario ya está en uso');
+        return;
+      }
+
+      prefectos.push({
+        id: Date.now(),
+        nombre_completo: nombre,
+        numero_empleado: numEmp,
+        usuario: usr,
+        contrasena: pass,
+        turno: turno,
+        area: area,
+        rol: rol,
+        observaciones: document.getElementById('observaciones').value.trim(),
+        fecha_registro: new Date().toLocaleString('es-MX')
+      });
+      localStorage.setItem('sp_prefectos', JSON.stringify(prefectos));
+
+      const alerta = document.getElementById('alerta-registro');
+      alerta.innerHTML = '<div class="alert alert-success">✅ Registro Exitoso — Prefecto registrado correctamente</div>';
+      document.getElementById('formPrefecto').reset();
+      limpiarErrores('formPrefecto');
+      setTimeout(() => alerta.innerHTML = '', 4000);
+    });
+  </script>
+</body>
+</html>

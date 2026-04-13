@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SeguriPass - Panel Administrador</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand"><img src="../logo.png" alt="Logo" style="height:34px;"> SeguriPass</div>
+    <div class="navbar-user">
+      <span id="nav-usuario-rol" style="font-size:0.75rem;opacity:0.7;"></span>
+      <span id="nav-usuario" style="font-weight:600;"></span>
+      <a href="../login.html" class="btn-logout" onclick="sessionStorage.clear()">Cerrar Sesión</a>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <ul class="sidebar-menu">
+        <li><a href="dashboard.html" class="active"><span class="icon">🏠</span> Inicio</a></li>
+        <li><a href="registro-prefecto.html"><span class="icon">👮</span> Registrar Prefecto</a></li>
+        <li><a href="gestionar-prefectos.html"><span class="icon">⚙️</span> Gestionar Prefectos</a></li>
+        <li><a href="respaldo.html"><span class="icon">💾</span> Respaldo BD</a></li>
+        <li><a href="configuracion.html"><span class="icon">🔧</span> Configuración</a></li>
+        <li><a href="../prefecto/solicitudes.html"><span class="icon">📋</span> Solicitudes</a></li>
+        <li><a href="../prefecto/historial.html"><span class="icon">📜</span> Historial</a></li>
+        <li><a href="../prefecto/reportes.html"><span class="icon">📊</span> Reportes</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <h2 style="color:var(--vino);margin-bottom:20px;">Panel de Administrador</h2>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">👮</div>
+          <div class="stat-info">
+            <div class="stat-num" id="stat-prefectos">0</div>
+            <div class="stat-label">Prefectos registrados</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">👥</div>
+          <div class="stat-info">
+            <div class="stat-num" id="stat-visitantes">0</div>
+            <div class="stat-label">Visitantes totales</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-info">
+            <div class="stat-num" id="stat-pendientes">0</div>
+            <div class="stat-label">Pendientes</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💾</div>
+          <div class="stat-info">
+            <div class="stat-num" id="stat-respaldos">0</div>
+            <div class="stat-label">Respaldos realizados</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accesos rápidos -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Accesos Rápidos</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;">
+          <a href="registro-prefecto.html" class="btn btn-primary" style="justify-content:center;padding:16px;">
+            👮 Registrar Prefecto
+          </a>
+          <a href="gestionar-prefectos.html" class="btn btn-secondary" style="justify-content:center;padding:16px;">
+            ⚙️ Gestionar Prefectos
+          </a>
+          <a href="respaldo.html" class="btn btn-secondary" style="justify-content:center;padding:16px;">
+            💾 Respaldo BD
+          </a>
+          <a href="configuracion.html" class="btn btn-secondary" style="justify-content:center;padding:16px;">
+            🔧 Configuración
+          </a>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../js/validaciones.js"></script>
+  <script src="../js/notificaciones.js"></script>
+  <script>
+    const usuario = sessionStorage.getItem('sp_usuario');
+    if (!usuario) window.location.href = '../login.html';
+    document.getElementById('nav-usuario').textContent = usuario || 'Administrador';
+    document.getElementById('nav-usuario-rol').textContent = sessionStorage.getItem('sp_rol') || '';
+    iniciarNotificaciones('admin');
+
+    const prefectos  = JSON.parse(localStorage.getItem('sp_prefectos') || '[]');
+    const solicitudes = JSON.parse(localStorage.getItem('sp_solicitudes') || '[]');
+    const respaldos  = JSON.parse(localStorage.getItem('sp_respaldos') || '[]');
+
+    document.getElementById('stat-prefectos').textContent  = prefectos.length;
+    document.getElementById('stat-visitantes').textContent = solicitudes.length;
+    document.getElementById('stat-pendientes').textContent = solicitudes.filter(s => s.estado === 'Pendiente').length;
+    document.getElementById('stat-respaldos').textContent  = respaldos.length;
+  </script>
+</body>
+</html>

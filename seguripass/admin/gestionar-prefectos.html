@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SeguriPass - Gestionar Prefectos</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand"><img src="../logo.png" alt="Logo" style="height:34px;"> SeguriPass</div>
+    <div class="navbar-user">
+      <span id="nav-usuario-rol" style="font-size:0.75rem;opacity:0.7;"></span>
+      <span id="nav-usuario" style="font-weight:600;"></span>
+      <a href="../login.html" class="btn-logout" onclick="sessionStorage.clear()">Cerrar Sesión</a>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <ul class="sidebar-menu">
+        <li><a href="dashboard.html"><span class="icon">🏠</span> Inicio</a></li>
+        <li><a href="registro-prefecto.html"><span class="icon">👮</span> Registrar Prefecto</a></li>
+        <li><a href="gestionar-prefectos.html" class="active"><span class="icon">⚙️</span> Gestionar Prefectos</a></li>
+        <li><a href="respaldo.html"><span class="icon">💾</span> Respaldo BD</a></li>
+        <li><a href="configuracion.html"><span class="icon">🔧</span> Configuración</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <h2 style="color:var(--vino);margin-bottom:20px;">⚙️ Gestión de Cuentas de Prefectos</h2>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Lista de Prefectos</span>
+          <a href="registro-prefecto.html" class="btn btn-sm btn-primary">+ Nuevo Prefecto</a>
+        </div>
+        <div id="listaPrefectos">
+          <p style="color:var(--gris-texto);text-align:center;padding:20px;">No hay prefectos registrados</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL Editar -->
+  <div class="modal-overlay" id="modalEditar">
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header">
+        <span class="modal-title">✏️ Modificar Prefecto</span>
+        <button class="modal-close" onclick="cerrarModal('modalEditar')">✕</button>
+      </div>
+      <form id="formEditar" novalidate>
+        <input type="hidden" id="edit_id">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="edit_nombre">Nombre Completo <span class="required">*</span></label>
+            <input type="text" id="edit_nombre" class="form-control" data-tipo="nombre" data-max="100">
+            <span class="error-msg" id="edit_nombre_err">Complete este campo</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit_numEmp">Número de Empleado <span class="required">*</span></label>
+            <input type="text" id="edit_numEmp" class="form-control" data-tipo="numero" data-max="20">
+            <span class="error-msg" id="edit_numEmp_err">Rellene este campo</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="edit_turno">Turno <span class="required">*</span></label>
+            <select id="edit_turno" class="form-control">
+              <option value="Matutino">Matutino</option>
+              <option value="Vespertino">Vespertino</option>
+              <option value="Tiempo Completo">Tiempo Completo</option>
+            </select>
+            <span class="error-msg" id="edit_turno_err">Turno no disponible</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit_area">Área <span class="required">*</span></label>
+            <input type="text" id="edit_area" class="form-control" data-tipo="alfanumerico" data-max="50">
+            <span class="error-msg" id="edit_area_err">Rellene el campo</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit_rol">Rol <span class="required">*</span></label>
+          <select id="edit_rol" class="form-control">
+            <option value="Prefecto">Prefecto</option>
+            <option value="Administrador">Administrador</option>
+          </select>
+          <span class="error-msg" id="edit_rol_err">Seleccione un rol</span>
+        </div>
+        <div class="btn-group flex-end">
+          <button type="button" class="btn btn-secondary" onclick="cerrarModal('modalEditar')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">💾 Guardar Modificación</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL Confirmar eliminar -->
+  <div class="modal-overlay" id="modalEliminar">
+    <div class="modal" style="max-width:400px;">
+      <div class="modal-header">
+        <span class="modal-title">🗑️ Eliminar Prefecto</span>
+        <button class="modal-close" onclick="cerrarModal('modalEliminar')">✕</button>
+      </div>
+      <div style="padding:10px 0;">
+        <p style="color:var(--gris-texto);">¿Está seguro de que desea eliminar a <strong id="nombre-eliminar"></strong>? Esta acción no se puede deshacer.</p>
+        <div class="btn-group flex-end" style="margin-top:16px;">
+          <button class="btn btn-secondary" onclick="cerrarModal('modalEliminar')">Cancelar</button>
+          <button class="btn btn-danger" onclick="confirmarEliminar()">🗑️ Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/validaciones.js"></script>
+  <script src="../js/notificaciones.js"></script>
+  <script>
+    let idEliminar = null;
+    const usuario = sessionStorage.getItem('sp_usuario');
+    if (!usuario) window.location.href = '../login.html';
+    document.getElementById('nav-usuario').textContent = usuario || 'Administrador';
+    document.getElementById('nav-usuario-rol').textContent = sessionStorage.getItem('sp_rol') || '';
+    iniciarNotificaciones('admin');
+
+    function cargarPrefectos() {
+      const prefectos = JSON.parse(localStorage.getItem('sp_prefectos') || '[]');
+      const lista = document.getElementById('listaPrefectos');
+
+      if (prefectos.length === 0) {
+        lista.innerHTML = '<p style="color:var(--gris-texto);text-align:center;padding:20px;">No hay prefectos registrados</p>';
+        return;
+      }
+
+      lista.innerHTML = `
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>N° Empleado</th>
+                <th>Usuario</th>
+                <th>Turno</th>
+                <th>Área</th>
+                <th>Rol</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${prefectos.map(p => `
+                <tr>
+                  <td>${p.nombre_completo}</td>
+                  <td>${p.numero_empleado}</td>
+                  <td>${p.usuario}</td>
+                  <td>${p.turno}</td>
+                  <td>${p.area}</td>
+                  <td><span class="badge badge-dentro">${p.rol}</span></td>
+                  <td>
+                    <button class="btn btn-sm btn-warning" onclick="abrirEditar(${p.id})">✏️ Modificar</button>
+                    <button class="btn btn-sm btn-danger" onclick="abrirEliminar(${p.id}, '${p.nombre_completo}')">🗑️</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function abrirEditar(id) {
+      const prefectos = JSON.parse(localStorage.getItem('sp_prefectos') || '[]');
+      const p = prefectos.find(x => x.id === id);
+      if (!p) return;
+      document.getElementById('edit_id').value     = p.id;
+      document.getElementById('edit_nombre').value = p.nombre_completo;
+      document.getElementById('edit_numEmp').value = p.numero_empleado;
+      document.getElementById('edit_turno').value  = p.turno;
+      document.getElementById('edit_area').value   = p.area;
+      document.getElementById('edit_rol').value    = p.rol;
+      limpiarErrores('formEditar');
+      abrirModal('modalEditar');
+    }
+
+    document.getElementById('formEditar').addEventListener('submit', function(e) {
+      e.preventDefault();
+      limpiarErrores('formEditar');
+      const nombre = document.getElementById('edit_nombre').value.trim();
+      const numEmp = document.getElementById('edit_numEmp').value.trim();
+      const turno  = document.getElementById('edit_turno').value;
+      const area   = document.getElementById('edit_area').value.trim();
+      const rol    = document.getElementById('edit_rol').value;
+      let valido = true;
+
+      if (!nombre) { mostrarError('edit_nombre', 'Complete este campo'); valido = false; }
+      if (!numEmp) { mostrarError('edit_numEmp', 'Rellene este campo'); valido = false; }
+      if (!turno)  { mostrarError('edit_turno', 'Turno no disponible'); valido = false; }
+      if (!area)   { mostrarError('edit_area', 'Rellene el campo'); valido = false; }
+      if (!rol)    { mostrarError('edit_rol', 'Seleccione un rol'); valido = false; }
+      if (!valido) return;
+
+      const id = parseInt(document.getElementById('edit_id').value);
+      const prefectos = JSON.parse(localStorage.getItem('sp_prefectos') || '[]');
+      const idx = prefectos.findIndex(p => p.id === id);
+      if (idx !== -1) {
+        prefectos[idx].nombre_completo = nombre;
+        prefectos[idx].numero_empleado = numEmp;
+        prefectos[idx].turno = turno;
+        prefectos[idx].area  = area;
+        prefectos[idx].rol   = rol;
+      }
+      localStorage.setItem('sp_prefectos', JSON.stringify(prefectos));
+      cerrarModal('modalEditar');
+      mostrarAlerta('success', '✅ Datos actualizados correctamente');
+      cargarPrefectos();
+    });
+
+    function abrirEliminar(id, nombre) {
+      idEliminar = id;
+      document.getElementById('nombre-eliminar').textContent = nombre;
+      abrirModal('modalEliminar');
+    }
+
+    function confirmarEliminar() {
+      let prefectos = JSON.parse(localStorage.getItem('sp_prefectos') || '[]');
+      prefectos = prefectos.filter(p => p.id !== idEliminar);
+      localStorage.setItem('sp_prefectos', JSON.stringify(prefectos));
+      cerrarModal('modalEliminar');
+      mostrarAlerta('info', 'ℹ️ Prefecto eliminado');
+      cargarPrefectos();
+    }
+
+    cargarPrefectos();
+  </script>
+</body>
+</html>

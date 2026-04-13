@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SeguriPass - Panel Prefecto</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="navbar-brand"><img src="../logo.png" alt="Logo" style="height:34px;"> SeguriPass</div>
+    <div class="navbar-user">
+      <span id="nav-usuario-rol" style="font-size:0.75rem;opacity:0.7;"></span>
+      <span id="nav-usuario" style="font-weight:600;"></span>
+      <a href="../login.html" class="btn-logout" onclick="sessionStorage.clear()">Cerrar Sesión</a>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <ul class="sidebar-menu">
+        <li><a href="dashboard.html" class="active"><span class="icon">🏠</span> Inicio</a></li>
+        <li><a href="solicitudes.html"><span class="icon">📋</span> Solicitudes</a></li>
+        <li><a href="historial.html"><span class="icon">📜</span> Historial</a></li>
+        <li><a href="reportes.html"><span class="icon">📊</span> Reportes</a></li>
+      </ul>
+    </aside>
+
+    <!-- CONTENIDO -->
+    <main class="main-content">
+      <h2 style="color:var(--vino);margin-bottom:4px;">Panel de Prefecto</h2>
+      <p id="info-prefecto" style="color:var(--gris-texto);font-size:0.85rem;margin-bottom:20px;"></p>
+
+      <!-- STATS -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-info">
+            <div class="stat-num" id="stat-pendientes">0</div>
+            <div class="stat-label">Pendientes</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-info">
+            <div class="stat-num" id="stat-aprobados">0</div>
+            <div class="stat-label">Aprobados hoy</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">❌</div>
+          <div class="stat-info">
+            <div class="stat-num" id="stat-rechazados">0</div>
+            <div class="stat-label">Rechazados hoy</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">👥</div>
+          <div class="stat-info">
+            <div class="stat-num" id="stat-total">0</div>
+            <div class="stat-label">Total registros</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SOLICITUDES PENDIENTES -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📋 Solicitudes Pendientes</span>
+          <a href="solicitudes.html" class="btn btn-sm btn-secondary">Ver todas</a>
+        </div>
+        <div id="listaSolicitudes">
+          <p style="color:var(--gris-texto);text-align:center;padding:20px;">No hay solicitudes pendientes</p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- MODAL: Confirmar aprobación -->
+  <div class="modal-overlay" id="modalAprobar">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">✅ Confirmar Acceso</span>
+        <button class="modal-close" onclick="cerrarModal('modalAprobar')">✕</button>
+      </div>
+      <div class="acceso-resultado acceso-permitido">
+        <div class="icono-grande">✅</div>
+        <h2>Acceso Permitido</h2>
+        <p style="color:var(--gris-texto);margin-top:8px;" id="modal-nombre-aprobado"></p>
+        <div class="btn-group" style="justify-content:center;margin-top:20px;">
+          <button class="btn btn-success" onclick="confirmarAccion('Aprobado')">Confirmar</button>
+          <button class="btn btn-secondary" onclick="cerrarModal('modalAprobar')">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Confirmar rechazo -->
+  <div class="modal-overlay" id="modalRechazar">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">❌ Rechazar Solicitud</span>
+        <button class="modal-close" onclick="cerrarModal('modalRechazar')">✕</button>
+      </div>
+      <div style="padding:10px 0;">
+        <p style="margin-bottom:14px;color:var(--gris-texto);" id="modal-nombre-rechazado"></p>
+        <div class="form-group">
+          <label class="form-label" for="motivo_rechazo">
+            Motivo de Rechazo <span class="required">*</span>
+          </label>
+          <textarea
+            id="motivo_rechazo"
+            class="form-control"
+            rows="3"
+            placeholder="Indique el motivo del rechazo..."
+            maxlength="200"
+          ></textarea>
+          <span class="error-msg" id="motivo_rechazo_err">Complete este campo</span>
+        </div>
+        <div class="btn-group flex-end">
+          <button class="btn btn-secondary" onclick="cerrarModal('modalRechazar')">Cancelar</button>
+          <button class="btn btn-danger" onclick="confirmarAccion('Rechazado')">Confirmar Rechazo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/validaciones.js"></script>
+  <script src="../js/notificaciones.js"></script>
+  <script>
+    let solicitudActual = null;
+
+    // Verificar sesión
+    const usuario = sessionStorage.getItem('sp_usuario');
+    if (!usuario) window.location.href = '../login.html';
+    document.getElementById('nav-usuario').textContent = usuario || 'Prefecto';
+    document.getElementById('nav-usuario-rol').textContent = sessionStorage.getItem('sp_rol') || '';
+
+    const turno = sessionStorage.getItem('sp_turno');
+    const area  = sessionStorage.getItem('sp_area');
+    const numEmp = sessionStorage.getItem('sp_num_empleado');
+    const infoParts = [];
+    if (numEmp) infoParts.push(`N° Empleado: ${numEmp}`);
+    if (turno)  infoParts.push(`Turno: ${turno}`);
+    if (area)   infoParts.push(`Área: ${area}`);
+    document.getElementById('info-prefecto').textContent = infoParts.join('  |  ');
+
+    iniciarNotificaciones('prefecto');
+
+    function cargarDatos() {
+      const solicitudes = JSON.parse(localStorage.getItem('sp_solicitudes') || '[]');
+      const pendientes  = solicitudes.filter(s => s.estado === 'Pendiente');
+      const aprobados   = solicitudes.filter(s => s.estado === 'Aprobado');
+      const rechazados  = solicitudes.filter(s => s.estado === 'Rechazado');
+
+      document.getElementById('stat-pendientes').textContent = pendientes.length;
+      document.getElementById('stat-aprobados').textContent  = aprobados.length;
+      document.getElementById('stat-rechazados').textContent = rechazados.length;
+      document.getElementById('stat-total').textContent      = solicitudes.length;
+
+      const lista = document.getElementById('listaSolicitudes');
+      if (pendientes.length === 0) {
+        lista.innerHTML = '<p style="color:var(--gris-texto);text-align:center;padding:20px;">No hay solicitudes pendientes</p>';
+        return;
+      }
+
+      lista.innerHTML = pendientes.slice(0, 5).map(s => `
+        <div class="solicitud-card">
+          <div class="sol-nombre">${s.nombre_completo}</div>
+          <div class="sol-detalle">
+            📋 ${s.motivo} &nbsp;|&nbsp; 📍 ${s.area} &nbsp;|&nbsp; 🕐 ${s.fecha}
+          </div>
+          <div class="sol-detalle">
+            👤 Visita a: ${s.persona_visitar} &nbsp;|&nbsp; 🪪 ID: ${s.identificacion}
+          </div>
+          <div class="sol-actions">
+            <button class="btn btn-sm btn-success" onclick="abrirAprobar(${s.id})">Permitir</button>
+            <button class="btn btn-sm btn-danger"  onclick="abrirRechazar(${s.id})">Rechazar</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function abrirAprobar(id) {
+      const solicitudes = JSON.parse(localStorage.getItem('sp_solicitudes') || '[]');
+      solicitudActual = solicitudes.find(s => s.id === id);
+      document.getElementById('modal-nombre-aprobado').textContent =
+        `Visitante: ${solicitudActual.nombre_completo} — Área: ${solicitudActual.area}`;
+      abrirModal('modalAprobar');
+    }
+
+    function abrirRechazar(id) {
+      const solicitudes = JSON.parse(localStorage.getItem('sp_solicitudes') || '[]');
+      solicitudActual = solicitudes.find(s => s.id === id);
+      document.getElementById('modal-nombre-rechazado').textContent =
+        `Visitante: ${solicitudActual.nombre_completo}`;
+      document.getElementById('motivo_rechazo').value = '';
+      limpiarError('motivo_rechazo');
+      abrirModal('modalRechazar');
+    }
+
+    function confirmarAccion(estado) {
+      if (estado === 'Rechazado') {
+        const motivo = document.getElementById('motivo_rechazo').value.trim();
+        if (!motivo) {
+          mostrarError('motivo_rechazo', 'Complete este campo');
+          return;
+        }
+        solicitudActual.motivo_rechazo = motivo;
+      }
+
+      const solicitudes = JSON.parse(localStorage.getItem('sp_solicitudes') || '[]');
+      const idx = solicitudes.findIndex(s => s.id === solicitudActual.id);
+      if (idx !== -1) {
+        solicitudes[idx].estado = estado;
+        solicitudes[idx].prefecto = usuario;
+        solicitudes[idx].fecha_atencion = new Date().toLocaleString('es-MX');
+      }
+      localStorage.setItem('sp_solicitudes', JSON.stringify(solicitudes));
+
+      cerrarModal('modalAprobar');
+      cerrarModal('modalRechazar');
+      mostrarAlerta(estado === 'Aprobado' ? 'success' : 'error',
+        estado === 'Aprobado' ? '✅ Acceso permitido correctamente' : '❌ Solicitud rechazada');
+      cargarDatos();
+    }
+
+    cargarDatos();
+  </script>
+</body>
+</html>

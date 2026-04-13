@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SeguriPass - Configuración</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand"><img src="../logo.png" alt="Logo" style="height:34px;"> SeguriPass</div>
+    <div class="navbar-user">
+      <span id="nav-usuario-rol" style="font-size:0.75rem;opacity:0.7;"></span>
+      <span id="nav-usuario" style="font-weight:600;"></span>
+      <a href="../login.html" class="btn-logout" onclick="sessionStorage.clear()">Cerrar Sesión</a>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <ul class="sidebar-menu">
+        <li><a href="dashboard.html"><span class="icon">🏠</span> Inicio</a></li>
+        <li><a href="registro-prefecto.html"><span class="icon">👮</span> Registrar Prefecto</a></li>
+        <li><a href="gestionar-prefectos.html"><span class="icon">⚙️</span> Gestionar Prefectos</a></li>
+        <li><a href="respaldo.html"><span class="icon">💾</span> Respaldo BD</a></li>
+        <li><a href="configuracion.html" class="active"><span class="icon">🔧</span> Configuración</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <h2 style="color:var(--vino);margin-bottom:20px;">🔧 Configuración del Sistema</h2>
+
+      <div class="card" style="max-width:600px;">
+        <div class="card-header">
+          <span class="card-title">Parámetros del Sistema</span>
+        </div>
+
+        <div id="alerta-config"></div>
+
+        <form id="formConfig" novalidate>
+
+          <!-- Días de operación -->
+          <div class="form-group">
+            <label class="form-label" for="dias">
+              Días de Operación <span class="required">*</span>
+            </label>
+            <select id="dias" class="form-control">
+              <option value="">-- Seleccione --</option>
+              <option value="Lunes a Viernes">Lunes a Viernes</option>
+              <option value="Lunes a Sábado">Lunes a Sábado</option>
+              <option value="Todos los días">Todos los días</option>
+            </select>
+            <span class="error-msg" id="dias_err">Seleccione una opción</span>
+          </div>
+
+          <!-- Horario de operación -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="hora_inicio">
+                Hora de Inicio <span class="required">*</span>
+              </label>
+              <input type="time" id="hora_inicio" class="form-control" value="07:00">
+              <span class="error-msg" id="hora_inicio_err">Seleccione una hora</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="hora_fin">
+                Hora de Cierre <span class="required">*</span>
+              </label>
+              <input type="time" id="hora_fin" class="form-control" value="21:00">
+              <span class="error-msg" id="hora_fin_err">Seleccione una hora</span>
+            </div>
+          </div>
+
+          <!-- Tiempo de sesión -->
+          <div class="form-group">
+            <label class="form-label" for="tiempo_sesion">
+              Tiempo de Sesión (minutos) <span class="required">*</span>
+            </label>
+            <input type="number" id="tiempo_sesion" class="form-control"
+              min="5" max="480" value="30"
+              placeholder="Ej: 30">
+            <span class="error-msg" id="tiempo_sesion_err">Ingrese un valor válido (5-480)</span>
+          </div>
+
+          <!-- Nombre del plantel -->
+          <div class="form-group">
+            <label class="form-label" for="nombre_plantel">Nombre del Plantel</label>
+            <input type="text" id="nombre_plantel" class="form-control"
+              value="CETis 132"
+              data-tipo="alfanumerico" data-max="100">
+          </div>
+
+          <div class="btn-group flex-end">
+            <button type="button" class="btn btn-secondary" onclick="cargarConfig()">↩️ Restaurar</button>
+            <button type="submit" class="btn btn-primary">💾 Guardar Cambios</button>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script src="../js/validaciones.js"></script>
+  <script src="../js/notificaciones.js"></script>
+  <script>
+    const usuario = sessionStorage.getItem('sp_usuario');
+    if (!usuario) window.location.href = '../login.html';
+    document.getElementById('nav-usuario').textContent = usuario || 'Administrador';
+    document.getElementById('nav-usuario-rol').textContent = sessionStorage.getItem('sp_rol') || '';
+    iniciarNotificaciones('admin');
+
+    function cargarConfig() {
+      const cfg = JSON.parse(localStorage.getItem('sp_config') || '{}');
+      if (cfg.dias)          document.getElementById('dias').value          = cfg.dias;
+      if (cfg.hora_inicio)   document.getElementById('hora_inicio').value   = cfg.hora_inicio;
+      if (cfg.hora_fin)      document.getElementById('hora_fin').value      = cfg.hora_fin;
+      if (cfg.tiempo_sesion) document.getElementById('tiempo_sesion').value = cfg.tiempo_sesion;
+      if (cfg.nombre_plantel) document.getElementById('nombre_plantel').value = cfg.nombre_plantel;
+    }
+
+    document.getElementById('formConfig').addEventListener('submit', function(e) {
+      e.preventDefault();
+      limpiarErrores('formConfig');
+
+      const dias    = document.getElementById('dias').value;
+      const hi      = document.getElementById('hora_inicio').value;
+      const hf      = document.getElementById('hora_fin').value;
+      const sesion  = parseInt(document.getElementById('tiempo_sesion').value);
+      let valido = true;
+
+      if (!dias) { mostrarError('dias', 'Seleccione una opción'); valido = false; }
+      if (!hi)   { mostrarError('hora_inicio', 'Seleccione una hora'); valido = false; }
+      if (!hf)   { mostrarError('hora_fin', 'Seleccione una hora'); valido = false; }
+      if (!sesion || sesion < 5 || sesion > 480) {
+        mostrarError('tiempo_sesion', 'Ingrese un valor válido (5-480)');
+        valido = false;
+      }
+      if (!valido) return;
+
+      const cfg = {
+        dias: dias,
+        hora_inicio: hi,
+        hora_fin: hf,
+        tiempo_sesion: sesion,
+        nombre_plantel: document.getElementById('nombre_plantel').value.trim(),
+        modificado_por: usuario,
+        fecha_modificacion: new Date().toLocaleString('es-MX')
+      };
+      localStorage.setItem('sp_config', JSON.stringify(cfg));
+
+      const alerta = document.getElementById('alerta-config');
+      alerta.innerHTML = '<div class="alert alert-success">✅ Configuración guardada correctamente</div>';
+      setTimeout(() => alerta.innerHTML = '', 3500);
+    });
+
+    cargarConfig();
+  </script>
+</body>
+</html>

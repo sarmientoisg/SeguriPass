@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SeguriPass - Respaldo BD</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand"><img src="../logo.png" alt="Logo" style="height:34px;"> SeguriPass</div>
+    <div class="navbar-user">
+      <span id="nav-usuario-rol" style="font-size:0.75rem;opacity:0.7;"></span>
+      <span id="nav-usuario" style="font-weight:600;"></span>
+      <a href="../login.html" class="btn-logout" onclick="sessionStorage.clear()">Cerrar Sesión</a>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <ul class="sidebar-menu">
+        <li><a href="dashboard.html"><span class="icon">🏠</span> Inicio</a></li>
+        <li><a href="registro-prefecto.html"><span class="icon">👮</span> Registrar Prefecto</a></li>
+        <li><a href="gestionar-prefectos.html"><span class="icon">⚙️</span> Gestionar Prefectos</a></li>
+        <li><a href="respaldo.html" class="active"><span class="icon">💾</span> Respaldo BD</a></li>
+        <li><a href="configuracion.html"><span class="icon">🔧</span> Configuración</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <h2 style="color:var(--vino);margin-bottom:20px;">💾 Respaldo y Recuperación de Base de Datos</h2>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+
+        <!-- Respaldar -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📤 Respaldar BD</span>
+          </div>
+          <p style="color:var(--gris-texto);font-size:0.9rem;margin-bottom:16px;">
+            Genera una copia de seguridad de todos los datos del sistema.
+          </p>
+          <button class="btn btn-primary w-100" onclick="realizarRespaldo()">
+            💾 Respaldar Base de Datos
+          </button>
+        </div>
+
+        <!-- Recuperar -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📥 Recuperar BD</span>
+          </div>
+          <p style="color:var(--gris-texto);font-size:0.9rem;margin-bottom:16px;">
+            Restaura la base de datos desde un respaldo previo.
+          </p>
+          <div class="form-group">
+            <label class="form-label" for="selRespaldo">Seleccionar respaldo</label>
+            <select id="selRespaldo" class="form-control">
+              <option value="">-- Seleccione un respaldo --</option>
+            </select>
+          </div>
+          <button class="btn btn-warning w-100" onclick="recuperarBD()">
+            🔄 Recuperar Base de Datos
+          </button>
+        </div>
+      </div>
+
+      <!-- Historial de respaldos -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📋 Historial de Respaldos</span>
+        </div>
+        <div id="historialRespaldos">
+          <p style="color:var(--gris-texto);text-align:center;padding:16px;">No hay respaldos registrados</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../js/validaciones.js"></script>
+  <script src="../js/notificaciones.js"></script>
+  <script>
+    const usuario = sessionStorage.getItem('sp_usuario');
+    if (!usuario) window.location.href = '../login.html';
+    document.getElementById('nav-usuario').textContent = usuario || 'Administrador';
+    document.getElementById('nav-usuario-rol').textContent = sessionStorage.getItem('sp_rol') || '';
+    iniciarNotificaciones('admin');
+
+    function cargarRespaldos() {
+      const respaldos = JSON.parse(localStorage.getItem('sp_respaldos') || '[]').reverse();
+      const sel = document.getElementById('selRespaldo');
+      sel.innerHTML = '<option value="">-- Seleccione un respaldo --</option>';
+      respaldos.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = `${r.nombre} — ${r.fecha}`;
+        sel.appendChild(opt);
+      });
+
+      const hist = document.getElementById('historialRespaldos');
+      if (respaldos.length === 0) {
+        hist.innerHTML = '<p style="color:var(--gris-texto);text-align:center;padding:16px;">No hay respaldos registrados</p>';
+        return;
+      }
+      hist.innerHTML = `
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Nombre Archivo</th><th>Tipo</th><th>Realizado por</th><th>Fecha</th><th>Estado</th></tr>
+            </thead>
+            <tbody>
+              ${respaldos.map((r, i) => `
+                <tr>
+                  <td>${i + 1}</td>
+                  <td>${r.nombre}</td>
+                  <td><span class="badge badge-dentro">${r.tipo}</span></td>
+                  <td>${r.usuario}</td>
+                  <td>${r.fecha}</td>
+                  <td><span class="badge badge-aprobado">${r.estado}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function realizarRespaldo() {
+      const datos = {
+        visitantes: localStorage.getItem('sp_solicitudes') || '[]',
+        prefectos:  localStorage.getItem('sp_prefectos')   || '[]',
+        reportes:   localStorage.getItem('sp_reportes')    || '[]'
+      };
+
+      const nombre = `respaldo_seguripass_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = nombre; a.click();
+      URL.revokeObjectURL(url);
+
+      const respaldos = JSON.parse(localStorage.getItem('sp_respaldos') || '[]');
+      respaldos.push({
+        id: Date.now(),
+        nombre: nombre,
+        tipo: 'Respaldo',
+        usuario: usuario,
+        fecha: new Date().toLocaleString('es-MX'),
+        estado: 'Completado'
+      });
+      localStorage.setItem('sp_respaldos', JSON.stringify(respaldos));
+      mostrarAlerta('success', '✅ Respaldo realizado y descargado correctamente');
+      cargarRespaldos();
+    }
+
+    function recuperarBD() {
+      const sel = document.getElementById('selRespaldo').value;
+      if (!sel) {
+        mostrarAlerta('warning', '⚠️ Seleccione un respaldo para recuperar');
+        return;
+      }
+      mostrarAlerta('info', 'ℹ️ Para recuperar, seleccione el archivo .json descargado previamente');
+
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          try {
+            const datos = JSON.parse(ev.target.result);
+            if (datos.visitantes) localStorage.setItem('sp_solicitudes', datos.visitantes);
+            if (datos.prefectos)  localStorage.setItem('sp_prefectos',   datos.prefectos);
+            if (datos.reportes)   localStorage.setItem('sp_reportes',    datos.reportes);
+
+            const respaldos = JSON.parse(localStorage.getItem('sp_respaldos') || '[]');
+            respaldos.push({
+              id: Date.now(),
+              nombre: file.name,
+              tipo: 'Recuperación',
+              usuario: usuario,
+              fecha: new Date().toLocaleString('es-MX'),
+              estado: 'Completado'
+            });
+            localStorage.setItem('sp_respaldos', JSON.stringify(respaldos));
+            mostrarAlerta('success', '✅ Base de datos recuperada correctamente');
+            cargarRespaldos();
+          } catch {
+            mostrarAlerta('error', '❌ Error al procesar el archivo. Verifique que sea un respaldo válido');
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    }
+
+    cargarRespaldos();
+  </script>
+</body>
+</html>

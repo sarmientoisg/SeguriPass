@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SeguriPass - Estado de Acceso</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .reloj {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--vino);
+      letter-spacing: 2px;
+    }
+    .fecha-txt {
+      font-size: 0.9rem;
+      color: var(--gris-texto);
+      margin-top: 2px;
+    }
+    @keyframes spin-check {
+      0%   { transform: scale(0.5) rotate(-20deg); opacity: 0; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .icono-acceso { animation: spin-check 0.5s ease; }
+
+    /* Burbuja flotante visitante */
+    .burbuja-notif {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--vino);
+      color: #fff;
+      border-radius: 50px;
+      padding: 10px 18px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 999;
+      animation: slideIn 0.4s ease;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(120%); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+    .burbuja-notif .dot {
+      width: 10px; height: 10px;
+      background: #FF3B30;
+      border-radius: 50%;
+      animation: pulse-badge 1.2s infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="acceso-page">
+    <div class="acceso-card" id="accesoCard">
+
+      <span class="icono-acceso" id="iconoAcceso">⏳</span>
+      <h1 id="tituloAcceso">Verificando...</h1>
+
+      <div class="acceso-nombre" id="nombreVisitante"></div>
+      <div class="acceso-detalle" id="areaVisitante"></div>
+      <div class="acceso-detalle" id="motivoVisitante"></div>
+
+      <div class="acceso-datetime">
+        <span>Fecha y hora de verificación</span>
+        <div class="reloj" id="reloj">--:--:--</div>
+        <div class="fecha-txt" id="fechaTxt"></div>
+      </div>
+
+      <div id="mensajeExtra" style="font-size:0.85rem;color:var(--gris-texto);margin-bottom:16px;"></div>
+
+      <a href="../index.html" class="btn btn-primary w-100" style="justify-content:center;">
+        Volver al Inicio
+      </a>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script>
+    function actualizarReloj() {
+      const ahora = new Date();
+      document.getElementById('reloj').textContent = ahora.toLocaleTimeString('es-MX');
+      document.getElementById('fechaTxt').textContent = ahora.toLocaleDateString('es-MX', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+    }
+    actualizarReloj();
+    setInterval(actualizarReloj, 1000);
+
+    const idSolicitud = localStorage.getItem('sp_solicitud_actual');
+    const card   = document.getElementById('accesoCard');
+    const icono  = document.getElementById('iconoAcceso');
+    const titulo = document.getElementById('tituloAcceso');
+    const extra  = document.getElementById('mensajeExtra');
+
+    if (!idSolicitud) {
+      card.className = 'acceso-card pendiente';
+      icono.textContent = '⚠️';
+      titulo.textContent = 'Sin Solicitud';
+      extra.textContent = 'No se encontró una solicitud activa.';
+    } else {
+      let estadoAnterior = 'Pendiente';
+
+      function mostrarBurbuja(msg, color) {
+        const b = document.createElement('div');
+        b.className = 'burbuja-notif';
+        b.innerHTML = `<span class="dot"></span> ${msg}`;
+        b.style.background = color;
+        document.body.appendChild(b);
+        setTimeout(() => b.remove(), 5000);
+      }
+
+      async function actualizarEstado() {
+        try {
+          const s = await Visitantes.estadoSolicitud(idSolicitud);
+
+          document.getElementById('nombreVisitante').textContent = s.nombre_completo || '';
+          document.getElementById('areaVisitante').textContent   = s.area ? '📍 Área: ' + s.area : '';
+          document.getElementById('motivoVisitante').textContent = s.motivo_visita ? '📋 ' + s.motivo_visita : '';
+
+          if (s.estado !== estadoAnterior) {
+            estadoAnterior = s.estado;
+            if (s.estado === 'Aprobado')  mostrarBurbuja('✅ ¡Tu acceso fue aprobado!', '#2E7D32');
+            if (s.estado === 'Rechazado') mostrarBurbuja('❌ Tu acceso fue rechazado', '#C62828');
+          }
+
+          if (s.estado === 'Aprobado') {
+            card.className = 'acceso-card permitido';
+            icono.textContent  = '✅';
+            titulo.textContent = 'Acceso Validado';
+            extra.innerHTML = `<strong style="color:var(--verde);">Puede ingresar al plantel.</strong><br>
+              Autorizado por: ${s.prefecto || 'Prefecto'}`;
+            clearInterval(intervalo);
+          } else if (s.estado === 'Rechazado') {
+            card.className = 'acceso-card denegado';
+            icono.textContent  = '❌';
+            titulo.textContent = 'Acceso Denegado';
+            extra.innerHTML = `<strong style="color:var(--rojo);">No se permitió el ingreso.</strong><br>
+              ${s.motivo_rechazo ? 'Motivo: ' + s.motivo_rechazo : ''}`;
+            clearInterval(intervalo);
+          } else {
+            card.className = 'acceso-card pendiente';
+            icono.textContent  = '⏳';
+            titulo.textContent = 'Esperando Validación';
+            extra.textContent  = 'El prefecto está revisando tu solicitud...';
+          }
+        } catch(err) {
+          extra.textContent = 'Error al verificar estado. Reintentando...';
+        }
+      }
+
+      actualizarEstado();
+      const intervalo = setInterval(actualizarEstado, 3000);
+    }
+  </script>
+</body>
+</html>

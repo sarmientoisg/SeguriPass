@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SeguriPass - Reportes</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand"><img src="../logo.png" alt="Logo" style="height:34px;"> SeguriPass</div>
+    <div class="navbar-user">
+      <span id="nav-usuario-rol" style="font-size:0.75rem;opacity:0.7;"></span>
+      <span id="nav-usuario" style="font-weight:600;"></span>
+      <a href="../login.html" class="btn-logout" onclick="sessionStorage.clear()">Cerrar Sesión</a>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <ul class="sidebar-menu">
+        <li><a href="dashboard.html"><span class="icon">🏠</span> Inicio</a></li>
+        <li><a href="solicitudes.html"><span class="icon">📋</span> Solicitudes</a></li>
+        <li><a href="historial.html"><span class="icon">📜</span> Historial</a></li>
+        <li><a href="reportes.html" class="active"><span class="icon">📊</span> Reportes</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <h2 style="color:var(--vino);margin-bottom:20px;">📊 Generar Reporte</h2>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Parámetros del Reporte</span>
+        </div>
+
+        <form id="formReporte" novalidate>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="fecha_inicio">
+                Fecha Inicio <span class="required">*</span>
+              </label>
+              <input type="date" id="fecha_inicio" class="form-control">
+              <span class="error-msg" id="fecha_inicio_err">Seleccione una fecha</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="fecha_fin">
+                Fecha Fin <span class="required">*</span>
+              </label>
+              <input type="date" id="fecha_fin" class="form-control">
+              <span class="error-msg" id="fecha_fin_err">Seleccione una fecha</span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="formato">
+                Formato <span class="required">*</span>
+              </label>
+              <select id="formato" class="form-control">
+                <option value="">-- Seleccione formato --</option>
+                <option value="PDF">PDF</option>
+                <option value="Excel">Excel</option>
+                <option value="CSV">CSV</option>
+              </select>
+              <span class="error-msg" id="formato_err">Seleccione un formato</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="filtro_area">Área (opcional)</label>
+              <select id="filtro_area" class="form-control">
+                <option value="">Todas las áreas</option>
+                <option>Dirección</option>
+                <option>Subdirección</option>
+                <option>Administración</option>
+                <option>Orientación</option>
+                <option>Prefectura</option>
+                <option>Sala de Maestros</option>
+                <option>Biblioteca</option>
+                <option>Laboratorio de Cómputo</option>
+                <option>Taller</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="btn-group flex-end">
+            <button type="submit" class="btn btn-primary">📊 Generar Reporte</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Resultado del reporte -->
+      <div class="card hidden" id="resultadoReporte">
+        <div class="card-header">
+          <span class="card-title">📋 Resultado del Reporte</span>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm btn-primary" onclick="imprimirReporte()">🖨️ Imprimir / PDF</button>
+          </div>
+        </div>
+        <div id="contenidoReporte"></div>
+      </div>
+
+      <!-- Reportes guardados -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📁 Reportes Generados</span>
+        </div>
+        <div id="listaReportes">
+          <p style="color:var(--gris-texto);text-align:center;padding:16px;">No hay reportes generados</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../js/validaciones.js"></script>
+  <script src="../js/notificaciones.js"></script>
+  <script>
+    const usuario = sessionStorage.getItem('sp_usuario');
+    if (!usuario) window.location.href = '../login.html';
+    document.getElementById('nav-usuario').textContent = usuario || 'Prefecto';
+    document.getElementById('nav-usuario-rol').textContent = sessionStorage.getItem('sp_rol') || '';
+    iniciarNotificaciones('prefecto');
+
+    // Fecha por defecto: hoy
+    const hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('fecha_inicio').value = hoy;
+    document.getElementById('fecha_fin').value = hoy;
+
+    document.getElementById('formReporte').addEventListener('submit', function(e) {
+      e.preventDefault();
+      limpiarErrores('formReporte');
+
+      const fi     = document.getElementById('fecha_inicio').value;
+      const ff     = document.getElementById('fecha_fin').value;
+      const fmt    = document.getElementById('formato').value;
+      const area   = document.getElementById('filtro_area').value;
+      let valido = true;
+
+      if (!fi) { mostrarError('fecha_inicio', 'Seleccione una fecha'); valido = false; }
+      if (!ff) { mostrarError('fecha_fin', 'Seleccione una fecha'); valido = false; }
+      if (!fmt) { mostrarError('formato', 'Seleccione un formato'); valido = false; }
+      if (!valido) return;
+
+      let solicitudes = JSON.parse(localStorage.getItem('sp_solicitudes') || '[]');
+      if (area) solicitudes = solicitudes.filter(s => s.area === area);
+
+      const resultado = document.getElementById('resultadoReporte');
+      const contenido = document.getElementById('contenidoReporte');
+      resultado.classList.remove('hidden');
+
+      if (solicitudes.length === 0) {
+        contenido.innerHTML = '<div class="alert alert-info">ℹ️ No se encontraron datos en las fechas especificadas</div>';
+      } else {
+        contenido.innerHTML = `
+          <div class="alert alert-success">✅ Reporte generado: ${solicitudes.length} registro(s) — Formato: ${fmt}</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nombre Visitante</th>
+                  <th>Persona Visitada</th>
+                  <th>Área</th>
+                  <th>Prefecto</th>
+                  <th>Fecha</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${solicitudes.map((s, i) => `
+                  <tr>
+                    <td>${i + 1}</td>
+                    <td>${s.nombre_completo}</td>
+                    <td>${s.persona_visitar}</td>
+                    <td>${s.area}</td>
+                    <td>${s.prefecto || '—'}</td>
+                    <td>${s.fecha}</td>
+                    <td><span class="badge badge-${s.estado.toLowerCase()}">${s.estado}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      // Guardar reporte
+      const reportes = JSON.parse(localStorage.getItem('sp_reportes') || '[]');
+      reportes.push({
+        id: Date.now(),
+        usuario: usuario,
+        fecha_inicio: fi,
+        fecha_fin: ff,
+        formato: fmt,
+        area: area || 'Todas',
+        fecha_generacion: new Date().toLocaleString('es-MX'),
+        total: solicitudes.length
+      });
+      localStorage.setItem('sp_reportes', JSON.stringify(reportes));
+      cargarReportes();
+      mostrarAlerta('success', `✅ Reporte generado en formato ${fmt}`);
+    });
+
+    function cargarReportes() {
+      const reportes = JSON.parse(localStorage.getItem('sp_reportes') || '[]').reverse();
+      const lista = document.getElementById('listaReportes');
+      if (reportes.length === 0) {
+        lista.innerHTML = '<p style="color:var(--gris-texto);text-align:center;padding:16px;">No hay reportes generados</p>';
+        return;
+      }
+      lista.innerHTML = `
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Generado por</th><th>Rango</th><th>Área</th><th>Formato</th><th>Fecha</th><th>Registros</th></tr>
+            </thead>
+            <tbody>
+              ${reportes.map((r, i) => `
+                <tr>
+                  <td>${i + 1}</td>
+                  <td>${r.usuario}</td>
+                  <td>${r.fecha_inicio} — ${r.fecha_fin}</td>
+                  <td>${r.area}</td>
+                  <td><span class="badge badge-dentro">${r.formato}</span></td>
+                  <td>${r.fecha_generacion}</td>
+                  <td>${r.total}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function imprimirReporte() {
+      window.print();
+    }
+
+    cargarReportes();
+  </script>
+</body>
+</html>

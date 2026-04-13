@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SeguriPass - Solicitudes</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand"><img src="../logo.png" alt="Logo" style="height:34px;"> SeguriPass</div>
+    <div class="navbar-user">
+      <span id="nav-usuario-rol" style="font-size:0.75rem;opacity:0.7;"></span>
+      <span id="nav-usuario" style="font-weight:600;"></span>
+      <a href="../login.html" class="btn-logout" onclick="sessionStorage.clear()">Cerrar Sesión</a>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <ul class="sidebar-menu">
+        <li><a href="dashboard.html"><span class="icon">🏠</span> Inicio</a></li>
+        <li><a href="solicitudes.html" class="active"><span class="icon">📋</span> Solicitudes</a></li>
+        <li><a href="historial.html"><span class="icon">📜</span> Historial</a></li>
+        <li><a href="reportes.html"><span class="icon">📊</span> Reportes</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <h2 style="color:var(--vino);margin-bottom:20px;">📋 Gestión de Solicitudes</h2>
+
+      <!-- Filtro -->
+      <div class="card" style="padding:16px;">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <select id="filtroEstado" class="form-control" style="width:180px;" onchange="cargarSolicitudes()">
+            <option value="">Todos los estados</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="Aprobado">Aprobado</option>
+            <option value="Rechazado">Rechazado</option>
+          </select>
+          <input type="text" id="filtroBuscar" class="form-control" style="width:220px;"
+            placeholder="Buscar por nombre..." oninput="cargarSolicitudes()">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Solicitudes de Acceso</span>
+          <span id="contador-solicitudes" style="font-size:0.85rem;color:var(--gris-texto);"></span>
+        </div>
+        <div id="listaSolicitudes">
+          <p style="color:var(--gris-texto);text-align:center;padding:20px;">Cargando...</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL Aprobar -->
+  <div class="modal-overlay" id="modalAprobar">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">✅ Confirmar Acceso</span>
+        <button class="modal-close" onclick="cerrarModal('modalAprobar')">✕</button>
+      </div>
+      <div class="acceso-resultado acceso-permitido">
+        <div class="icono-grande">✅</div>
+        <h2>Acceso Permitido</h2>
+        <p style="color:var(--gris-texto);margin-top:8px;" id="modal-nombre-aprobado"></p>
+        <div class="btn-group" style="justify-content:center;margin-top:20px;">
+          <button class="btn btn-success" onclick="confirmarAccion('Aprobado')">Confirmar</button>
+          <button class="btn btn-secondary" onclick="cerrarModal('modalAprobar')">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL Rechazar -->
+  <div class="modal-overlay" id="modalRechazar">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">❌ Rechazar Solicitud</span>
+        <button class="modal-close" onclick="cerrarModal('modalRechazar')">✕</button>
+      </div>
+      <div style="padding:10px 0;">
+        <p style="margin-bottom:14px;color:var(--gris-texto);" id="modal-nombre-rechazado"></p>
+        <div class="form-group">
+          <label class="form-label" for="motivo_rechazo">
+            Motivo de Rechazo <span class="required">*</span>
+          </label>
+          <textarea id="motivo_rechazo" class="form-control" rows="3"
+            placeholder="Indique el motivo del rechazo..." maxlength="200"></textarea>
+          <span class="error-msg" id="motivo_rechazo_err">Complete este campo</span>
+        </div>
+        <div class="btn-group flex-end">
+          <button class="btn btn-secondary" onclick="cerrarModal('modalRechazar')">Cancelar</button>
+          <button class="btn btn-danger" onclick="confirmarAccion('Rechazado')">Confirmar Rechazo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL Ver detalle -->
+  <div class="modal-overlay" id="modalDetalle">
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header">
+        <span class="modal-title">🔍 Detalle del Visitante</span>
+        <button class="modal-close" onclick="cerrarModal('modalDetalle')">✕</button>
+      </div>
+      <div id="contenido-detalle"></div>
+    </div>
+  </div>
+
+  <script src="../js/validaciones.js"></script>
+  <script src="../js/notificaciones.js"></script>
+  <script>
+    let solicitudActual = null;
+    const usuario = sessionStorage.getItem('sp_usuario');
+    if (!usuario) window.location.href = '../login.html';
+    document.getElementById('nav-usuario').textContent = usuario || 'Prefecto';
+    document.getElementById('nav-usuario-rol').textContent = sessionStorage.getItem('sp_rol') || '';
+    iniciarNotificaciones('prefecto');
+
+    function cargarSolicitudes() {
+      const filtroEstado = document.getElementById('filtroEstado').value;
+      const filtroBuscar = document.getElementById('filtroBuscar').value.toLowerCase();
+      let solicitudes = JSON.parse(localStorage.getItem('sp_solicitudes') || '[]');
+
+      if (filtroEstado) solicitudes = solicitudes.filter(s => s.estado === filtroEstado);
+      if (filtroBuscar) solicitudes = solicitudes.filter(s =>
+        s.nombre_completo.toLowerCase().includes(filtroBuscar));
+
+      document.getElementById('contador-solicitudes').textContent = `${solicitudes.length} registro(s)`;
+
+      const lista = document.getElementById('listaSolicitudes');
+      if (solicitudes.length === 0) {
+        lista.innerHTML = '<p style="color:var(--gris-texto);text-align:center;padding:20px;">No se encontraron solicitudes</p>';
+        return;
+      }
+
+      lista.innerHTML = solicitudes.reverse().map(s => `
+        <div class="solicitud-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div class="sol-nombre">${s.nombre_completo}</div>
+              <div class="sol-detalle">📋 ${s.motivo} &nbsp;|&nbsp; 📍 ${s.area}</div>
+              <div class="sol-detalle">🕐 ${s.fecha}</div>
+            </div>
+            <span class="badge badge-${s.estado.toLowerCase()}">${s.estado}</span>
+          </div>
+          <div class="sol-actions">
+            <button class="btn btn-sm btn-secondary" onclick="verDetalle(${s.id})">🔍 Ver</button>
+            ${s.estado === 'Pendiente' ? `
+              <button class="btn btn-sm btn-success" onclick="abrirAprobar(${s.id})">Permitir</button>
+              <button class="btn btn-sm btn-danger"  onclick="abrirRechazar(${s.id})">Rechazar</button>
+            ` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function verDetalle(id) {
+      const solicitudes = JSON.parse(localStorage.getItem('sp_solicitudes') || '[]');
+      const s = solicitudes.find(x => x.id === id);
+      if (!s) return;
+      document.getElementById('contenido-detalle').innerHTML = `
+        <table style="width:100%;font-size:0.9rem;">
+          <tr><td style="padding:7px;color:var(--gris-texto);width:40%;">Nombre completo</td><td style="padding:7px;font-weight:600;">${s.nombre_completo}</td></tr>
+          <tr style="background:var(--gris-claro);"><td style="padding:7px;color:var(--gris-texto);">Identificación</td><td style="padding:7px;">${s.identificacion}</td></tr>
+          <tr><td style="padding:7px;color:var(--gris-texto);">Motivo</td><td style="padding:7px;">${s.motivo}</td></tr>
+          <tr style="background:var(--gris-claro);"><td style="padding:7px;color:var(--gris-texto);">Persona a visitar</td><td style="padding:7px;">${s.persona_visitar}</td></tr>
+          <tr><td style="padding:7px;color:var(--gris-texto);">Área</td><td style="padding:7px;">${s.area}</td></tr>
+          <tr style="background:var(--gris-claro);"><td style="padding:7px;color:var(--gris-texto);">Fecha registro</td><td style="padding:7px;">${s.fecha}</td></tr>
+          <tr><td style="padding:7px;color:var(--gris-texto);">Estado</td><td style="padding:7px;"><span class="badge badge-${s.estado.toLowerCase()}">${s.estado}</span></td></tr>
+          ${s.motivo_rechazo ? `<tr style="background:var(--gris-claro);"><td style="padding:7px;color:var(--gris-texto);">Motivo rechazo</td><td style="padding:7px;color:var(--rojo);">${s.motivo_rechazo}</td></tr>` : ''}
+          ${s.prefecto ? `<tr><td style="padding:7px;color:var(--gris-texto);">Atendido por</td><td style="padding:7px;">${s.prefecto}</td></tr>` : ''}
+        </table>
+      `;
+      abrirModal('modalDetalle');
+    }
+
+    function abrirAprobar(id) {
+      const solicitudes = JSON.parse(localStorage.getItem('sp_solicitudes') || '[]');
+      solicitudActual = solicitudes.find(s => s.id === id);
+      document.getElementById('modal-nombre-aprobado').textContent =
+        `Visitante: ${solicitudActual.nombre_completo} — Área: ${solicitudActual.area}`;
+      abrirModal('modalAprobar');
+    }
+
+    function abrirRechazar(id) {
+      const solicitudes = JSON.parse(localStorage.getItem('sp_solicitudes') || '[]');
+      solicitudActual = solicitudes.find(s => s.id === id);
+      document.getElementById('modal-nombre-rechazado').textContent =
+        `Visitante: ${solicitudActual.nombre_completo}`;
+      document.getElementById('motivo_rechazo').value = '';
+      limpiarError('motivo_rechazo');
+      abrirModal('modalRechazar');
+    }
+
+    function confirmarAccion(estado) {
+      if (estado === 'Rechazado') {
+        const motivo = document.getElementById('motivo_rechazo').value.trim();
+        if (!motivo) { mostrarError('motivo_rechazo', 'Complete este campo'); return; }
+        solicitudActual.motivo_rechazo = motivo;
+      }
+      const solicitudes = JSON.parse(localStorage.getItem('sp_solicitudes') || '[]');
+      const idx = solicitudes.findIndex(s => s.id === solicitudActual.id);
+      if (idx !== -1) {
+        solicitudes[idx].estado = estado;
+        solicitudes[idx].prefecto = usuario;
+        solicitudes[idx].fecha_atencion = new Date().toLocaleString('es-MX');
+        if (estado === 'Rechazado') solicitudes[idx].motivo_rechazo = solicitudActual.motivo_rechazo;
+      }
+      localStorage.setItem('sp_solicitudes', JSON.stringify(solicitudes));
+      cerrarModal('modalAprobar');
+      cerrarModal('modalRechazar');
+      mostrarAlerta(estado === 'Aprobado' ? 'success' : 'error',
+        estado === 'Aprobado' ? '✅ Acceso permitido' : '❌ Solicitud rechazada');
+      cargarSolicitudes();
+    }
+
+    cargarSolicitudes();
+  </script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SeguriPass - Registro de Visitante</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="navbar-brand"><img src="../logo.png" alt="Logo" style="height:34px;"> SeguriPass</div>
+    <div class="navbar-user">
+      <span>CETis 132</span>
+      <a href="../index.html" class="btn-logout">← Inicio</a>
+    </div>
+  </nav>
+
+  <div style="display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 60px);padding:24px;background:var(--gris-claro);">
+    <div style="width:100%;max-width:600px;">
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🧑‍💼 Registro de Visitante</span>
+        </div>
+
+        <div id="alerta-form"></div>
+
+        <form id="formVisitante" novalidate>
+
+          <!-- Nombre completo -->
+          <div class="form-group">
+            <label class="form-label" for="nombre_completo">
+              Nombre Completo <span class="required">*</span>
+            </label>
+            <input
+              type="text"
+              id="nombre_completo"
+              class="form-control"
+              placeholder="Ej: Juan Pérez García"
+              data-tipo="nombre"
+              data-max="100"
+            >
+            <span class="error-msg" id="nombre_completo_err">Rellene todos los campos</span>
+          </div>
+
+          <!-- Identificación oficial -->
+          <div class="form-group">
+            <label class="form-label" for="identificacion">
+              Identificación Oficial (INE / Pasaporte) <span class="required">*</span>
+            </label>
+            <input
+              type="text"
+              id="identificacion"
+              class="form-control"
+              placeholder="Número de identificación"
+              data-tipo="alfanumerico"
+              data-max="50"
+            >
+            <span class="error-msg" id="identificacion_err">Complete este campo, deben usarse números o letras</span>
+          </div>
+
+          <!-- Motivo de visita -->
+          <div class="form-group">
+            <label class="form-label" for="motivo">
+              Motivo de Visita <span class="required">*</span>
+            </label>
+            <input
+              type="text"
+              id="motivo"
+              class="form-control"
+              placeholder="Ej: Entregar documentos, reunión con director..."
+              data-tipo="alfanumerico"
+              data-max="150"
+            >
+            <span class="error-msg" id="motivo_err">Complete este campo, no introduzca números</span>
+          </div>
+
+          <!-- Persona a visitar -->
+          <div class="form-group">
+            <label class="form-label" for="persona_visitar">
+              Persona a Visitar
+              <small style="color:var(--gris-texto);font-weight:400;">(opcional si se desconoce)</small>
+            </label>
+            <input
+              type="text"
+              id="persona_visitar"
+              class="form-control"
+              placeholder="Nombre del empleado, profesor o área"
+              data-tipo="nombre"
+              data-max="100"
+            >
+            <span class="error-msg" id="persona_visitar_err"></span>
+          </div>
+
+          <!-- Área a visitar -->
+          <div class="form-group">
+            <label class="form-label" for="area">
+              Área a Visitar <span class="required">*</span>
+            </label>
+            <select id="area" class="form-control">
+              <option value="">-- Seleccione un área --</option>
+              <option>Dirección</option>
+              <option>Subdirección</option>
+              <option>Administración</option>
+              <option>Orientación</option>
+              <option>Prefectura</option>
+              <option>Sala de Maestros</option>
+              <option>Biblioteca</option>
+              <option>Laboratorio de Cómputo</option>
+              <option>Taller</option>
+              <option>Otro</option>
+            </select>
+            <span class="error-msg" id="area_err">Complete este campo, no introduzca números</span>
+          </div>
+
+          <div class="btn-group flex-end">
+            <a href="../index.html" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">📨 Solicitar Acceso</button>
+          </div>
+
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: Solicitud enviada -->
+  <div class="modal-overlay" id="modalEnviado">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">✅ Solicitud Enviada</span>
+        <button class="modal-close" onclick="cerrarModal('modalEnviado')">✕</button>
+      </div>
+      <div class="acceso-resultado">
+        <div class="icono-grande">📨</div>
+        <h2 style="color:var(--vino);">Solicitud Enviada</h2>
+        <p style="color:var(--gris-texto);margin-top:8px;">
+          Tu solicitud fue enviada al prefecto.<br>
+          Por favor espera la confirmación de acceso.
+        </p>
+        <div class="btn-group" style="justify-content:center;margin-top:20px;">
+          <a href="../index.html" class="btn btn-primary">Volver al Inicio</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/validaciones.js"></script>
+  <script src="../js/api.js"></script>
+  <script>
+    document.getElementById('formVisitante').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      limpiarErrores('formVisitante');
+
+      const nombre  = document.getElementById('nombre_completo').value.trim();
+      const ident   = document.getElementById('identificacion').value.trim();
+      const motivo  = document.getElementById('motivo').value.trim();
+      const area    = document.getElementById('area').value;
+      let valido = true;
+
+      if (!nombre) { mostrarError('nombre_completo', 'Rellene todos los campos'); valido = false; }
+      if (!ident)  { mostrarError('identificacion', 'Complete este campo'); valido = false; }
+      if (!motivo) { mostrarError('motivo', 'Complete este campo'); valido = false; }
+      if (!area)   { mostrarError('area', 'Complete este campo'); valido = false; }
+      if (!valido) return;
+
+      const btn = document.querySelector('button[type=submit]');
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+
+      try {
+        const data = await Visitantes.registrar({
+          nombre_completo:        nombre,
+          identificacion_oficial: ident,
+          motivo_visita:          motivo,
+          persona_a_visitar:      document.getElementById('persona_visitar').value.trim(),
+          area:                   area
+        });
+
+        // Guardar ID de solicitud para la pantalla de estado
+        localStorage.setItem('sp_solicitud_actual', data.solicitud_id);
+        window.location.href = 'estado-acceso.html';
+
+      } catch (err) {
+        mostrarAlerta('error', '❌ Error al enviar la solicitud. Intenta de nuevo.');
+        btn.disabled = false;
+        btn.textContent = '📨 Solicitar Acceso';
+      }
+    });
+  </script>
+</body>
+</html>
