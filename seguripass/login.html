@@ -1,149 +1,197 @@
+<!-- 
+  NOMBRE DEL AUTOR: Carlos Ignacio Sarmiento García
+  FECHA DE CREACIÓN: Lunes 6 de abril de 2026
+  DESCRIPCIÓN: Interfaz de inicio de sesión para el sistema SeguriPass.
+  Incluye validaciones de seguridad, alternancia de visibilidad de contraseña 
+  y gestión de autenticación mediante API.
+-->
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SeguriPass - Iniciar Sesión</title>
-  <link rel="stylesheet" href="css/styles.css">
-  <style>
-    .password-wrapper {
-      position: relative;
-    }
-    .toggle-pass {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 1rem;
-      color: var(--gris-texto);
-      padding: 0;
-      line-height: 1;
-    }
-    .login-divider {
-      text-align: center;
-      color: var(--gris-texto);
-      font-size: 0.78rem;
-      margin: 14px 0;
-      position: relative;
-    }
-    .login-divider::before, .login-divider::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      width: 40%;
-      height: 1px;
-      background: var(--gris);
-    }
-    .login-divider::before { left: 0; }
-    .login-divider::after  { right: 0; }
-    .credenciales-demo {
-      background: #FFF8E1;
-      border: 1px solid #FFE082;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 0.78rem;
-      color: #5D4037;
-      margin-top: 14px;
-    }
-    .credenciales-demo strong { display: block; margin-bottom: 4px; color: var(--vino); }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeguriPass - Iniciar Sesión</title>
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <style>
+        /* Estilos específicos para la funcionalidad de la vista de login */
+        .password-wrapper {
+            position: relative;
+        }
+
+        .toggle-pass {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            color: var(--gris-texto);
+            padding: 0;
+            line-height: 1;
+        }
+
+        .login-divider {
+            text-align: center;
+            color: var(--gris-texto);
+            font-size: 0.78rem;
+            margin: 14px 0;
+            position: relative;
+        }
+
+        .login-divider::before, .login-divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: var(--gris);
+        }
+
+        .login-divider::before { left: 0; }
+        .login-divider::after  { right: 0; }
+    </style>
 </head>
 <body>
-  <div class="login-page">
-    <div class="login-box">
-      <div class="login-logo">
-        <img src="logo.png" alt="SeguriPass" style="height:64px;display:block;margin:0 auto 10px;">
-        <h1 style="font-size:1.7rem;">SeguriPass</h1>
-        <p>Control de Acceso — CETis 132</p>
-      </div>
+    <div class="login-page">
+        <main class="login-box">
+            <!-- Sección del Logotipo -->
+            <header class="login-logo">
+                <img src="logo.png" alt="SeguriPass" style="height:64px; display:block; margin:0 auto 10px;">
+                <h1 style="font-size:1.7rem;">SeguriPass</h1>
+                <p>Control de Acceso — CETis 132</p>
+            </header>
 
-      <div id="alerta-login"></div>
+            <!-- Contenedor para mensajes de error de autenticación -->
+            <div id="alerta-login"></div>
 
-      <form id="formLogin" novalidate>
-        <div class="form-group">
-          <label class="form-label" for="usuario">
-            Usuario <span class="required">*</span>
-          </label>
-          <input type="text" id="usuario" class="form-control"
-            placeholder="Ingresa tu usuario"
-            data-tipo="alfanumerico" data-max="50"
-            autocomplete="username">
-          <span class="error-msg" id="usuario_err">Rellene este campo</span>
-        </div>
+            <!-- Formulario de acceso -->
+            <form id="formLogin" novalidate>
+                <!-- Campo: Nombre de Usuario -->
+                <div class="form-group">
+                    <label class="form-label" for="usuario">
+                        Usuario <span class="required">*</span>
+                    </label>
+                    <input type="text" id="usuario" class="form-control"
+                        placeholder="Ingresa tu usuario"
+                        data-tipo="alfanumerico" data-max="50"
+                        autocomplete="username">
+                    <span class="error-msg" id="usuario_err">Rellene este campo</span>
+                </div>
 
-        <div class="form-group">
-          <label class="form-label" for="contrasena">
-            Contraseña <span class="required">*</span>
-          </label>
-          <div class="password-wrapper">
-            <input type="password" id="contrasena" class="form-control"
-              placeholder="Ingresa tu contraseña"
-              data-tipo="password" data-max="128"
-              autocomplete="current-password"
-              style="padding-right:40px;">
-            <button type="button" class="toggle-pass" onclick="togglePass('contrasena', this)">👁️</button>
-          </div>
-          <span class="error-msg" id="contrasena_err">Rellene este campo</span>
-        </div>
+                <!-- Campo: Contraseña con opción de visualización -->
+                <div class="form-group">
+                    <label class="form-label" for="contrasena">
+                        Contraseña <span class="required">*</span>
+                    </label>
+                    <div class="password-wrapper">
+                        <input type="password" id="contrasena" class="form-control"
+                            placeholder="Ingresa tu contraseña"
+                            data-tipo="password" data-max="128"
+                            autocomplete="current-password"
+                            style="padding-right:40px;">
+                        <!-- Botón para alternar visibilidad de caracteres -->
+                        <button type="button" class="toggle-pass" onclick="alternarVisibilidadPassword('contrasena', this)">
+                            👁️
+                        </button>
+                    </div>
+                    <span class="error-msg" id="contrasena_err">Rellene este campo</span>
+                </div>
 
-        <button type="submit" class="btn btn-primary w-100 mt-10" style="padding:11px;">
-          Iniciar Sesión
-        </button>
-      </form>
+                <button type="submit" class="btn btn-primary w-100 mt-10" style="padding:11px;">
+                    Iniciar Sesión
+                </button>
+            </form>
 
-
-
-      <div class="text-center mt-20">
-        <a href="index.html" style="color:var(--vino);font-size:0.85rem;">← Volver a selección de rol</a>
-      </div>
+            <!-- Navegación de retorno -->
+            <footer class="text-center mt-20">
+                <a href="index.html" style="color:var(--vino); font-size:0.85rem;">← Volver a selección de rol</a>
+            </footer>
+        </main>
     </div>
-  </div>
 
-  <script src="js/validaciones.js"></script>
-  <script src="js/api.js"></script>
-  <script>
-    function togglePass(inputId, btn) {
-      const input = document.getElementById(inputId);
-      input.type = input.type === 'password' ? 'text' : 'password';
-      btn.textContent = input.type === 'password' ? '👁️' : '🙈';
-    }
-
-    document.getElementById('formLogin').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      limpiarErrores('formLogin');
-
-      const usr  = document.getElementById('usuario').value.trim();
-      const pass = document.getElementById('contrasena').value.trim();
-      let valido = true;
-
-      if (!usr)  { mostrarError('usuario', 'Rellene este campo'); valido = false; }
-      if (!pass) { mostrarError('contrasena', 'Rellene este campo'); valido = false; }
-      else if (pass.length < 8) { mostrarError('contrasena', 'Mínimo 8 caracteres'); valido = false; }
-      if (!valido) return;
-
-      const btn = document.querySelector('button[type=submit]');
-      btn.disabled = true;
-      btn.textContent = 'Verificando...';
-
-      try {
-        const data = await Auth.login(usr, pass);
-        Auth.guardarSesion(data);
-        if (data.rol === 'Administrador') {
-          window.location.href = 'admin/dashboard.html';
-        } else {
-          window.location.href = 'prefecto/dashboard.html';
+    <!-- Scripts de validación y conexión con backend -->
+    <script src="js/validaciones.js"></script>
+    <script src="js/api.js"></script>
+    
+    <script>
+        /**
+         * Cambia el tipo de input entre password y text para mostrar/ocultar caracteres.
+         * @param {string} inputId - El ID del elemento input a modificar.
+         * @param {HTMLElement} btn - El botón que disparó la acción para cambiar su icono.
+         */
+        function alternarVisibilidadPassword(inputId, btn) {
+            const campoInput = document.getElementById(inputId);
+            
+            if (campoInput.type === 'password') {
+                campoInput.type = 'text';
+                btn.textContent = '🙈';
+            } else {
+                campoInput.type = 'password';
+                btn.textContent = '👁️';
+            }
         }
-      } catch (err) {
-        const alerta = document.getElementById('alerta-login');
-        alerta.innerHTML = '<div class="alert alert-error">❌ Usuario o contraseña incorrectos</div>';
-        setTimeout(() => alerta.innerHTML = '', 3500);
-        btn.disabled = false;
-        btn.textContent = 'Iniciar Sesión';
-      }
-    });
-  </script>
+
+        /**
+         * Manejador del evento submit para procesar el inicio de sesión.
+         */
+        document.getElementById('formLogin').addEventListener('submit', async function(evento) {
+            evento.preventDefault();
+            limpiarErrores('formLogin');
+
+            // Captura y limpieza de valores de entrada
+            const valorUsuario  = document.getElementById('usuario').value.trim();
+            const valorPassword = document.getElementById('contrasena').value.trim();
+            let esFormularioValido = true;
+
+            // Validación de campos obligatorios
+            if (!valorUsuario) { 
+                mostrarError('usuario', 'Rellene este campo'); 
+                esFormularioValido = false; 
+            }
+            
+            if (!valorPassword) { 
+                mostrarError('contrasena', 'Rellene este campo'); 
+                esFormularioValido = false; 
+            } else if (valorPassword.length < 8) { 
+                mostrarError('contrasena', 'Mínimo 8 caracteres'); 
+                esFormularioValido = false; 
+            }
+
+            if (!esFormularioValido) return;
+
+            // Estado visual de carga durante la autenticación
+            const botonSubmit = document.querySelector('button[type=submit]');
+            botonSubmit.disabled = true;
+            botonSubmit.textContent = 'Verificando...';
+
+            try {
+                // Intento de autenticación mediante la clase Auth (definida en api.js)
+                const datosSesion = await Auth.login(valorUsuario, valorPassword);
+                Auth.guardarSesion(datosSesion);
+                
+                // Redirección basada en el rol del usuario obtenido
+                if (datosSesion.rol === 'Administrador') {
+                    window.location.href = 'admin/dashboard.html';
+                } else {
+                    window.location.href = 'prefecto/dashboard.html';
+                }
+            } catch (error) {
+                // Manejo de errores de credenciales o conexión
+                const contenedorAlerta = document.getElementById('alerta-login');
+                contenedorAlerta.innerHTML = '<div class="alert alert-error">❌ Usuario o contraseña incorrectos</div>';
+                
+                // Limpiar alerta automáticamente después de 3.5 segundos
+                setTimeout(() => contenedorAlerta.innerHTML = '', 3500);
+                
+                // Restaurar estado del botón
+                botonSubmit.disabled = false;
+                botonSubmit.textContent = 'Iniciar Sesión';
+            }
+        });
+    </script>
 </body>
 </html>
