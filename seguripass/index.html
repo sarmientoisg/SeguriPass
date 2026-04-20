@@ -1,34 +1,50 @@
+<!-- 
+  NOMBRE DEL AUTOR: Carlos Ignacio Sarmiento García
+  FECHA DE CREACIÓN: Lunes 6 de abril de 2026
+  DESCRIPCIÓN: Página de selección de rol para el sistema SeguriPass (CETis 132). 
+  Permite a los usuarios elegir entre el registro de visitantes o el acceso administrativo.
+-->
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SeguriPass - Selección de Rol</title>
-  <link rel="stylesheet" href="css/styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeguriPass - Selección de Rol</title>
+    <!-- Enlace a la hoja de estilos externa para mantener la separación de intereses -->
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <div class="rol-page">
-    <div class="rol-titulo">
-      <img src="logo.png" alt="SeguriPass" style="height:70px;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;">
-      SeguriPass
-      <span>Sistema de Control de Acceso — CETis 132</span>
-    </div>
+    <!-- Contenedor principal de la página de selección de roles -->
+    <div class="rol-page">
+        
+        <!-- Bloque de encabezado: Logotipo y títulos del sistema -->
+        <header class="rol-titulo">
+            <img src="logo.png" alt="SeguriPass" style="height:70px; margin-bottom:8px; display:block; margin-left:auto; margin-right:auto;">
+            <h1>SeguriPass</h1>
+            <span>Sistema de Control de Acceso — CETis 132</span>
+        </header>
 
-    <div class="rol-cards">
-      <!-- Visitante -->
-      <a href="visitante/registro.html" class="rol-card">
-        <div class="rol-icon">🧑‍💼</div>
-        <div class="rol-nombre">Visitante</div>
-        <div class="rol-desc">Registrar solicitud de acceso al plantel</div>
-      </a>
+        <!-- Sección de tarjetas: Contenedor para las opciones de perfil de usuario -->
+        <main class="rol-cards">
+            
+            <!-- Opción: Visitante 
+                 Propósito: Redirigir al formulario de registro de entrada -->
+            <a href="visitante/registro.html" class="rol-card">
+                <div class="rol-icon" aria-hidden="true">🧑‍💼</div>
+                <div class="rol-nombre">Visitante</div>
+                <p class="rol-desc">Registrar solicitud de acceso al plantel</p>
+            </a>
 
-      <!-- Prefecto / Admin -->
-      <a href="login.html" class="rol-card">
-        <div class="rol-icon">👮</div>
-        <div class="rol-nombre">Prefecto / Admin</div>
-        <div class="rol-desc">Iniciar sesión en el sistema de gestión</div>
-      </a>
+            <!-- Opción: Prefecto / Admin 
+                 Propósito: Redirigir al portal de inicio de sesión administrativo -->
+            <a href="login.html" class="rol-card">
+                <div class="rol-icon" aria-hidden="true">👮</div>
+                <div class="rol-nombre">Prefecto / Admin</div>
+                <p class="rol-desc">Iniciar sesión en el sistema de gestión</p>
+            </a>
+
+        </main>
     </div>
-  </div>
 </body>
 </html>
