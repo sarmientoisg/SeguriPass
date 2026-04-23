@@ -1,103 +1,157 @@
 <?php
+/**
+ * ARCHIVO: gestion_usuarios.php
+ * AUTOR: Carlos Ignacio Sarmiento Garcia
+ * FECHA: 23 de abril de 2026
+ * DESCRIPCIÓN: Script CRUD para la administración de usuarios (prefectos) del sistema Seguripass.
+ * Permite listar, registrar, actualizar y eliminar personal operativo.
+ */
+
 require_once 'config.php';
 
-$method = $_SERVER['REQUEST_METHOD'];
+// Identificación del método de solicitud HTTP para determinar la acción
+$metodoSolicitud = $_SERVER['REQUEST_METHOD'];
 
-// GET: Listar todos los prefectos
-if ($method === 'GET') {
-    $conn = conectar();
-    $result = $conn->query(
-        "SELECT id, nombre_completo, numero_empleado, usuario, turno, area, permisos, observaciones, fecha_registro
-         FROM usuarios ORDER BY fecha_registro DESC"
-    );
-    $rows = $result->fetch_all(MYSQLI_ASSOC);
-    $conn->close();
-    responder($rows);
+// =============================================================================
+// 1. PROCESAMIENTO DE PETICIÓN GET: LISTAR TODOS LOS USUARIOS
+// =============================================================================
+if ($metodoSolicitud === 'GET') {
+    $conexionBaseDatos = establecerConexionBaseDatos();
+    
+    // Consulta para obtener el catálogo completo de personal registrado
+    $consultaUsuarios = "SELECT id, nombre_completo, numero_empleado, usuario, turno, area, permisos, observaciones, fecha_registro
+                         FROM usuarios 
+                         ORDER BY fecha_registro DESC";
+                         
+    $resultadoConsulta = $conexionBaseDatos->query($consultaUsuarios);
+    
+    // Extracción de todos los registros en un arreglo asociativo
+    $listadoUsuarios = $resultadoConsulta->fetch_all(MYSQLI_ASSOC);
+    
+    $conexionBaseDatos->close();
+    enviarRespuestaJson($listadoUsuarios);
 }
 
-// POST: Registrar nuevo prefecto
-if ($method === 'POST') {
-    $body    = leerBody();
-    $nombre  = trim($body['nombre_completo']  ?? '');
-    $numEmp  = trim($body['numero_empleado']  ?? '');
-    $usr     = trim($body['usuario']          ?? '');
-    $pass    = trim($body['contrasena']       ?? '');
-    $turno   = trim($body['turno']            ?? '');
-    $area    = trim($body['area']             ?? '');
-    $rol     = trim($body['rol']              ?? 'Prefecto');
-    $obs     = trim($body['observaciones']    ?? '');
+// =============================================================================
+// 2. PROCESAMIENTO DE PETICIÓN POST: REGISTRAR NUEVO USUARIO
+// =============================================================================
+if ($metodoSolicitud === 'POST') {
+    $cuerpoPeticion = obtenerCuerpoSolicitudJson();
+    
+    // Inicialización y saneamiento de variables recibidas
+    $nombreCompleto   = trim($cuerpoPeticion['nombre_completo']  ?? '');
+    $numeroEmpleado   = trim($cuerpoPeticion['numero_empleado']  ?? '');
+    $nombreAcceso     = trim($cuerpoPeticion['usuario']          ?? '');
+    $contrasenaPlana  = trim($cuerpoPeticion['contrasena']       ?? '');
+    $turnoAsignado    = trim($cuerpoPeticion['turno']            ?? '');
+    $areaAsignada     = trim($cuerpoPeticion['area']             ?? '');
+    $rolPermisos      = trim($cuerpoPeticion['rol']              ?? 'Prefecto');
+    $observaciones    = trim($cuerpoPeticion['observaciones']    ?? '');
 
-    if (!$nombre || !$numEmp || !$usr || !$pass || !$turno || !$area) {
-        responder(['error' => 'Faltan campos obligatorios'], 400);
+    // Validación de integridad de datos obligatorios
+    if (!$nombreCompleto || !$numeroEmpleado || !$nombreAcceso || !$contrasenaPlana || !$turnoAsignado || !$areaAsignada) {
+        enviarRespuestaJson(['error' => 'Error: Todos los campos marcados como obligatorios deben ser completados'], 400);
     }
-    if (strlen($pass) < 8) {
-        responder(['error' => 'La contraseña debe tener mínimo 8 caracteres'], 400);
+    
+    // Validación de seguridad para la longitud de la contraseña
+    if (strlen($contrasenaPlana) < 8) {
+        enviarRespuestaJson(['error' => 'Seguridad: La contraseña debe contener al menos 8 caracteres'], 400);
     }
 
-    $conn = conectar();
+    $conexionBaseDatos = establecerConexionBaseDatos();
 
-    // Verificar duplicados
-    $stmt = $conn->prepare("SELECT id FROM usuarios WHERE numero_empleado = ? OR usuario = ?");
-    $stmt->bind_param('ss', $numEmp, $usr);
-    $stmt->execute();
-    $stmt->store_result();
-    if ($stmt->num_rows > 0) {
-        $stmt->close(); $conn->close();
-        responder(['error' => 'El número de empleado o usuario ya existe'], 409);
+    /**
+     * VERIFICACIÓN DE DUPLICADOS:
+     * Se comprueba que no exista otro registro con el mismo número de empleado o nombre de usuario.
+     */
+    $sentenciaVerificar = $conexionBaseDatos->prepare("SELECT id FROM usuarios WHERE numero_empleado = ? OR usuario = ?");
+    $sentenciaVerificar->bind_param('ss', $numeroEmpleado, $nombreAcceso);
+    $sentenciaVerificar->execute();
+    $sentenciaVerificar->store_result();
+    
+    if ($sentenciaVerificar->num_rows > 0) {
+        $sentenciaVerificar->close(); 
+        $conexionBaseDatos->close();
+        enviarRespuestaJson(['error' => 'Conflicto: El número de empleado o el nombre de usuario ya se encuentran registrados'], 409);
     }
-    $stmt->close();
+    $sentenciaVerificar->close();
 
-    $stmt2 = $conn->prepare(
+    // Inserción del nuevo registro con cifrado de contraseña SHA-256
+    $sentenciaInsertar = $conexionBaseDatos->prepare(
         "INSERT INTO usuarios (nombre_completo, numero_empleado, usuario, contrasena, turno, area, permisos, observaciones)
          VALUES (?, ?, ?, SHA2(?, 256), ?, ?, ?, ?)"
     );
-    $stmt2->bind_param('ssssssss', $nombre, $numEmp, $usr, $pass, $turno, $area, $rol, $obs);
-    $stmt2->execute();
-    $id = $conn->insert_id;
-    $stmt2->close();
-    $conn->close();
+    $sentenciaInsertar->bind_param('ssssssss', $nombreCompleto, $numeroEmpleado, $nombreAcceso, $contrasenaPlana, $turnoAsignado, $areaAsignada, $rolPermisos, $observaciones);
+    $sentenciaInsertar->execute();
+    
+    $nuevoIdGenerado = $conexionBaseDatos->insert_id;
+    $sentenciaInsertar->close();
+    $conexionBaseDatos->close();
 
-    responder(['ok' => true, 'id' => $id, 'mensaje' => 'Prefecto registrado correctamente']);
+    enviarRespuestaJson([
+        'ok'      => true, 
+        'id'      => $nuevoIdGenerado, 
+        'mensaje' => 'El usuario ha sido registrado exitosamente en el sistema'
+    ]);
 }
 
-// PUT: Modificar prefecto
-if ($method === 'PUT') {
-    $body   = leerBody();
-    $id     = intval($body['id']             ?? 0);
-    $nombre = trim($body['nombre_completo']  ?? '');
-    $numEmp = trim($body['numero_empleado']  ?? '');
-    $turno  = trim($body['turno']            ?? '');
-    $area   = trim($body['area']             ?? '');
-    $rol    = trim($body['rol']              ?? '');
+// =============================================================================
+// 3. PROCESAMIENTO DE PETICIÓN PUT: ACTUALIZAR DATOS DE USUARIO
+// =============================================================================
+if ($metodoSolicitud === 'PUT') {
+    $cuerpoPeticion = obtenerCuerpoSolicitudJson();
+    
+    // Identificador único requerido para la actualización
+    $identificadorUsuario = intval($cuerpoPeticion['id']             ?? 0);
+    $nombreActualizado    = trim($cuerpoPeticion['nombre_completo']  ?? '');
+    $numeroEmpleadoAct    = trim($cuerpoPeticion['numero_empleado']  ?? '');
+    $turnoActualizado     = trim($cuerpoPeticion['turno']            ?? '');
+    $areaActualizada      = trim($cuerpoPeticion['area']             ?? '');
+    $rolActualizado       = trim($cuerpoPeticion['rol']              ?? '');
 
-    if (!$id || !$nombre || !$numEmp || !$turno || !$area || !$rol) {
-        responder(['error' => 'Faltan campos requeridos'], 400);
+    if (!$identificadorUsuario || !$nombreActualizado || !$numeroEmpleadoAct || !$turnoActualizado || !$areaActualizada || !$rolActualizado) {
+        enviarRespuestaJson(['error' => 'Error: Información insuficiente para realizar la actualización'], 400);
     }
 
-    $conn = conectar();
-    $stmt = $conn->prepare(
+    $conexionBaseDatos = establecerConexionBaseDatos();
+    
+    // Actualización de campos permitidos
+    $sentenciaActualizar = $conexionBaseDatos->prepare(
         "UPDATE usuarios SET nombre_completo=?, numero_empleado=?, turno=?, area=?, permisos=? WHERE id=?"
     );
-    $stmt->bind_param('sssssi', $nombre, $numEmp, $turno, $area, $rol, $id);
-    $stmt->execute();
-    $stmt->close();
-    $conn->close();
-    responder(['ok' => true, 'mensaje' => 'Prefecto actualizado correctamente']);
+    $sentenciaActualizar->bind_param('sssssi', $nombreActualizado, $numeroEmpleadoAct, $turnoActualizado, $areaActualizada, $rolActualizado, $identificadorUsuario);
+    $sentenciaActualizar->execute();
+    
+    $sentenciaActualizar->close();
+    $conexionBaseDatos->close();
+    
+    enviarRespuestaJson(['ok' => true, 'mensaje' => 'Los datos del usuario han sido actualizados correctamente']);
 }
 
-// DELETE: Eliminar prefecto
-if ($method === 'DELETE') {
-    $id = intval($_GET['id'] ?? 0);
-    if (!$id) responder(['error' => 'ID requerido'], 400);
+// =============================================================================
+// 4. PROCESAMIENTO DE PETICIÓN DELETE: ELIMINAR USUARIO
+// =============================================================================
+if ($metodoSolicitud === 'DELETE') {
+    // Se obtiene el ID mediante el parámetro de la URL
+    $identificadorEliminar = intval($_GET['id'] ?? 0);
+    
+    if (!$identificadorEliminar) {
+        enviarRespuestaJson(['error' => 'Error: Se requiere el identificador del usuario para proceder con la eliminación'], 400);
+    }
 
-    $conn = conectar();
-    $stmt = $conn->prepare("DELETE FROM usuarios WHERE id = ?");
-    $stmt->bind_param('i', $id);
-    $stmt->execute();
-    $stmt->close();
-    $conn->close();
-    responder(['ok' => true, 'mensaje' => 'Prefecto eliminado']);
+    $conexionBaseDatos = establecerConexionBaseDatos();
+    
+    $sentenciaEliminar = $conexionBaseDatos->prepare("DELETE FROM usuarios WHERE id = ?");
+    $sentenciaEliminar->bind_param('i', $identificadorEliminar);
+    $sentenciaEliminar->execute();
+    
+    $sentenciaEliminar->close();
+    $conexionBaseDatos->close();
+    
+    enviarRespuestaJson(['ok' => true, 'mensaje' => 'El registro ha sido eliminado del sistema de forma definitiva']);
 }
 
-responder(['error' => 'Método no permitido'], 405);
+// Respuesta por defecto para métodos HTTP no implementados
+enviarRespuestaJson(['error' => 'Error: El método solicitado no es válido para este recurso'], 405);
 ?>
+
