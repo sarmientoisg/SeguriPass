@@ -1,13 +1,25 @@
 <?php
+/**
+ * ARCHIVO: gestion_reportes.php
+ * AUTOR: Carlos Ignacio Sarmiento Garcia
+ * FECHA: 23 de abril de 2026
+ * DESCRIPCIÓN: Script para la generación histórica y consulta de reportes de visitas.
+ * Permite filtrar por rangos de fecha, áreas específicas y formatos de salida.
+ */
+
 require_once 'config.php';
 
-$method = $_SERVER['REQUEST_METHOD'];
+// Identificación del método de solicitud HTTP
+$metodoSolicitud = $_SERVER['REQUEST_METHOD'];
 
-// GET: Listar reportes generados
-if ($method === 'GET') {
-    $conn   = conectar();
-    $result = $conn->query(
-        "SELECT r.id, r.rango_fecha_inicio, r.rango_fecha_fin, r.formato, r.area_filtro,
+// =============================================================================
+// 1. PROCESAMIENTO DE PETICIÓN GET: LISTAR REPORTES GENERADOS
+// =============================================================================
+if ($metodoSolicitud === 'GET') {
+    $conexionBaseDatos = establecerConexionBaseDatos();
+    
+    // Consulta para listar el historial de reportes con subconsulta para conteo de registros
+    $consultaHistorial = "SELECT r.id, r.rango_fecha_inicio, r.rango_fecha_fin, r.formato, r.area_filtro,
                 r.fecha_generacion, u.nombre_completo AS generado_por,
                 (SELECT COUNT(*) FROM solicitudes s
                  JOIN visitantes v ON v.id = s.visitante_id
@@ -16,67 +28,89 @@ if ($method === 'GET') {
                 ) AS total_registros
          FROM reportes r
          JOIN usuarios u ON u.id = r.usuario_id
-         ORDER BY r.fecha_generacion DESC"
-    );
-    $rows = $result->fetch_all(MYSQLI_ASSOC);
-    $conn->close();
-    responder($rows);
+         ORDER BY r.fecha_generacion DESC";
+         
+    $resultadoConsulta = $conexionBaseDatos->query($consultaHistorial);
+    $listadoReportes   = $resultadoConsulta->fetch_all(MYSQLI_ASSOC);
+    
+    $conexionBaseDatos->close();
+    enviarRespuestaJson($listadoReportes);
 }
 
-// POST: Generar reporte (guarda el registro y devuelve los datos)
-if ($method === 'POST') {
-    $body       = leerBody();
-    $usuario_id = intval($body['usuario_id']         ?? 0);
-    $fi         = trim($body['rango_fecha_inicio']   ?? '');
-    $ff         = trim($body['rango_fecha_fin']      ?? '');
-    $formato    = trim($body['formato']              ?? '');
-    $area       = trim($body['area_filtro']          ?? '');
+// =============================================================================
+// 2. PROCESAMIENTO DE PETICIÓN POST: GENERAR Y REGISTRAR REPORTE
+// =============================================================================
+if ($metodoSolicitud === 'POST') {
+    $cuerpoPeticion = obtenerCuerpoSolicitudJson();
+    
+    // Inicialización de variables con nomenclatura descriptiva
+    $identificadorUsuario = intval($cuerpoPeticion['usuario_id']         ?? 0);
+    $fechaInicioFiltro    = trim($cuerpoPeticion['rango_fecha_inicio']   ?? '');
+    $fechaFinFiltro       = trim($cuerpoPeticion['rango_fecha_fin']      ?? '');
+    $formatoReporte       = trim($cuerpoPeticion['formato']              ?? '');
+    $areaEspecifica       = trim($cuerpoPeticion['area_filtro']          ?? '');
 
-    if (!$usuario_id || !$fi || !$ff || !$formato) {
-        responder(['error' => 'Faltan campos requeridos'], 400);
+    // Validación de campos obligatorios para la generación
+    if (!$identificadorUsuario || !$fechaInicioFiltro || !$fechaFinFiltro || !$formatoReporte) {
+        enviarRespuestaJson(['error' => 'Error: Los campos de usuario, fechas y formato son obligatorios'], 400);
     }
 
-    $conn = conectar();
+    $conexionBaseDatos = establecerConexionBaseDatos();
 
-    // Guardar registro del reporte
-    $stmt = $conn->prepare(
+    /**
+     * FASE 1: Registro del log del reporte generado en la base de datos.
+     */
+    $sentenciaLog = $conexionBaseDatos->prepare(
         "INSERT INTO reportes (usuario_id, rango_fecha_inicio, rango_fecha_fin, formato, area_filtro)
          VALUES (?, ?, ?, ?, ?)"
     );
-    $stmt->bind_param('issss', $usuario_id, $fi, $ff, $formato, $area);
-    $stmt->execute();
-    $stmt->close();
+    $sentenciaLog->bind_param('issss', $identificadorUsuario, $fechaInicioFiltro, $fechaFinFiltro, $formatoReporte, $areaEspecifica);
+    $sentenciaLog->execute();
+    $sentenciaLog->close();
 
-    // Obtener datos para el reporte
-    $sql = "SELECT v.nombre_completo, v.identificacion_oficial, v.motivo_visita,
-                   v.persona_a_visitar, v.area, s.estado, s.fecha_solicitud, s.fecha_atencion,
-                   u.nombre_completo AS prefecto
-            FROM solicitudes s
-            JOIN visitantes v ON v.id = s.visitante_id
-            LEFT JOIN validaciones val ON val.solicitud_id = s.id
-            LEFT JOIN usuarios u ON u.id = val.usuario_id
-            WHERE DATE(s.fecha_solicitud) BETWEEN ? AND ?";
+    /**
+     * FASE 2: Extracción de datos maestros para el contenido del reporte.
+     * Se construye una consulta dinámica basada en si existe un filtro de área.
+     */
+    $consultaMaestra = "SELECT v.nombre_completo, v.identificacion_oficial, v.motivo_visita,
+                               v.persona_a_visitar, v.area, s.estado, s.fecha_solicitud, s.fecha_atencion,
+                               u.nombre_completo AS prefecto
+                        FROM solicitudes s
+                        JOIN visitantes v ON v.id = s.visitante_id
+                        LEFT JOIN validaciones val ON val.solicitud_id = s.id
+                        LEFT JOIN usuarios u ON u.id = val.usuario_id
+                        WHERE DATE(s.fecha_solicitud) BETWEEN ? AND ?";
 
-    $params = [$fi, $ff];
-    $types  = 'ss';
+    $parametrosBusqueda = [$fechaInicioFiltro, $fechaFinFiltro];
+    $tiposDatos         = 'ss';
 
-    if ($area) {
-        $sql    .= " AND v.area = ?";
-        $params[] = $area;
-        $types   .= 's';
+    // Agregar filtro de área a la consulta si fue proporcionado por el usuario
+    if ($areaEspecifica) {
+        $consultaMaestra   .= " AND v.area = ?";
+        $parametrosBusqueda[] = $areaEspecifica;
+        $tiposDatos          .= 's';
     }
 
-    $sql .= " ORDER BY s.fecha_solicitud DESC";
+    $consultaMaestra .= " ORDER BY s.fecha_solicitud DESC";
 
-    $stmt2 = $conn->prepare($sql);
-    $stmt2->bind_param($types, ...$params);
-    $stmt2->execute();
-    $datos = $stmt2->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt2->close();
-    $conn->close();
+    $sentenciaDatos = $conexionBaseDatos->prepare($consultaMaestra);
+    $sentenciaDatos->bind_param($tiposDatos, ...$parametrosBusqueda);
+    $sentenciaDatos->execute();
+    
+    $datosReporte = $sentenciaDatos->get_result()->fetch_all(MYSQLI_ASSOC);
+    
+    // Cierre de conexiones y recursos
+    $sentenciaDatos->close();
+    $conexionBaseDatos->close();
 
-    responder(['ok' => true, 'datos' => $datos, 'total' => count($datos)]);
+    // Entrega de los resultados al cliente
+    enviarRespuestaJson([
+        'ok'    => true, 
+        'datos' => $datosReporte, 
+        'total' => count($datosReporte)
+    ]);
 }
 
-responder(['error' => 'Método no permitido'], 405);
+// Respuesta para métodos no permitidos
+enviarRespuestaJson(['error' => 'Error: El método solicitado no está disponible para este módulo'], 405);
 ?>
